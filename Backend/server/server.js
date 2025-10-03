@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'E-Commerce API',
+      title: 'Tinde API',
       version: '1.0.0',
-      description: 'API documentation for the E-Commerce platform',
+      description: 'API documentation for the tinder platform',
     },
     servers: [
       { url:process.env.FRONTEND_URL }
