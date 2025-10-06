@@ -13,7 +13,7 @@
 
 
 import express from "express";
-import { registerUser, loginUser } from "../controllers/userController.js";
+import { registerUser, loginUser, logoutUser } from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -70,5 +70,20 @@ router.post("/register", registerUser);
  *         description: Invalid credentials
  */
 router.post("/login", loginUser);
+    
+
+/**
+ * @swagger
+ * /user/logout:
+ *   post:
+ *     summary: Logout a user
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ */
+router.post("/logout", logoutUser);
+
+
 
 export default router;

@@ -4,18 +4,18 @@ import Profile from "../models/profile.js";
 
 export const createOrUpdateProfile = async (req, res) => {
   try {
-    const imageUrl = req.file ? req.file.path : "";
+    const imageUrl = req.file ? req.file.path : ""; // multer-cloudinary से आने वाला url
 
-   
+    // Interests parsing (same as before)
     let interests = [];
     if (req.body.interests) {
       try {
         if (typeof req.body.interests === "string") {
-          // Agar plain string hai (e.g. "i like you")
-          if (req.body.interests.trim().startsWith("["))
-            interests = JSON.parse(req.body.interests); 
-          else
-            interests = [req.body.interests]; 
+          if (req.body.interests.trim().startsWith("[")) {
+            interests = JSON.parse(req.body.interests);
+          } else {
+            interests = [req.body.interests];
+          }
         } else {
           interests = req.body.interests;
         }
@@ -24,13 +24,14 @@ export const createOrUpdateProfile = async (req, res) => {
       }
     }
 
-  
+    // Attributes parsing (same as before)
     let attributes = [];
     if (req.body.attributes) {
       try {
-        attributes = typeof req.body.attributes === "string"
-          ? JSON.parse(req.body.attributes)
-          : req.body.attributes;
+        attributes =
+          typeof req.body.attributes === "string"
+            ? JSON.parse(req.body.attributes)
+            : req.body.attributes;
       } catch {
         return res.status(400).json({ error: "Invalid attributes format" });
       }
@@ -39,16 +40,19 @@ export const createOrUpdateProfile = async (req, res) => {
     let profile = await Profile.findOne({ user: req.user._id });
 
     if (profile) {
-    
+      // 🔹 Update existing profile (bilkul product jaise assign hoga)
       profile.bio = req.body.bio || profile.bio;
       profile.age = req.body.age || profile.age;
       profile.gender = req.body.gender || profile.gender;
       profile.interests = interests.length ? interests : profile.interests;
       profile.attributes = attributes.length ? attributes : profile.attributes;
-      if (imageUrl) profile.image = imageUrl;
+      profile.image = imageUrl || profile.image; // always url assign karega
 
       await profile.save();
-      return res.status(200).json({ message: "Profile updated successfully", profile });
+      return res.status(200).json({
+        message: "Profile updated successfully",
+        profile,
+      });
     } else {
       // 🔹 Create new profile
       const newProfile = new Profile({
@@ -57,18 +61,25 @@ export const createOrUpdateProfile = async (req, res) => {
         age: req.body.age,
         gender: req.body.gender,
         interests,
-        image: imageUrl,
+        image: imageUrl, // url from cloudinary
         attributes,
       });
 
       const savedProfile = await newProfile.save();
-      return res.status(201).json({ message: "Profile created successfully", profile: savedProfile });
+      return res.status(201).json({
+        message: "Profile created successfully",
+        profile: savedProfile,
+      });
     }
   } catch (err) {
     console.error("Profile Error:", err);
-    res.status(500).json({ error: "Profile creation failed", details: err.message });
+    res.status(500).json({
+      error: "Profile creation failed",
+      details: err.message,
+    });
   }
 };
+
 
 
 export const getProfiles = async (req, res) => {

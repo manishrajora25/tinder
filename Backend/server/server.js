@@ -44,7 +44,7 @@ const options = {
       description: "API documentation for the Tinder platform",
     },
     servers: [
-      { url: process.env.BACKEND_URL || "http://localhost:5000/api" } // ✅ backend URL
+      { url: process.env.BACKEND_URL || "http://localhost:3000/api" } // ✅ backend URL
     ],
     components: {
       securitySchemes: {
@@ -57,7 +57,7 @@ const options = {
     },
     security: [{ cookieAuth: [] }]
   },
-  apis: ["./routes/*.js"], // Swagger comments yaha hone chahiye
+  apis: ["./routes/*.js"], 
 };
 
 const swaggerSpec = swaggerJSDoc(options);
