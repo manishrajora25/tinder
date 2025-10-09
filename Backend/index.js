@@ -73,11 +73,14 @@ import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./server/server.js";
 
+import postRoute from "./routes/postRoute.js";
+
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+connectDB();
 
 const allowedOrigins = [
   process.env.LOCAL_URL,
@@ -113,9 +116,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/user", UserRoute);
 app.use("/profile", profileRoute);
+app.use("/post", postRoute);
 
 
-connectDB();
 app.listen(port, () => {
   console.log(`Server running at ${port}`);
   console.log(`Swagger Docs available at ${port}/api-docs`);

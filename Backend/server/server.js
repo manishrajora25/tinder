@@ -44,7 +44,8 @@ const options = {
       description: "API documentation for the Tinder platform",
     },
     servers: [
-      { url: process.env.BACKEND_URL || "http://localhost:3000/api" } // ✅ backend URL
+      { url: process.env.BACKEND_URL_LOGIN  },
+      { url: process.env.BACKEND_URL_REGISTER },
     ],
     components: {
       securitySchemes: {
