@@ -82,9 +82,9 @@
 
 
 import express from "express";
-import { createOrUpdateProfile, getProfiles } from "../controllers/profileController.js";
+import { createOrUpdateProfile, getMyProfile, getProfiles,  updateProfile} from "../controllers/profileController.js";
 import checkToken from "../middleware/checkToken.js";
-import upload from "../middleware/cloudinaryUpload.js"; // ✅ Correct import
+import upload from "../middleware/cloudinaryUpload.js"; 
 
 const router = express.Router();
 
@@ -124,6 +124,8 @@ const router = express.Router();
  */
 router.post("/create", checkToken, upload.single("image"), createOrUpdateProfile);
 
+router.put("/update/:id", checkToken, upload.single("image"), updateProfile);
+
 /**
  * @swagger
  * /profile/all:
@@ -136,5 +138,7 @@ router.post("/create", checkToken, upload.single("image"), createOrUpdateProfile
  *         description: List of all profiles
  */
 router.get("/all", getProfiles);
+
+router.get("/me", checkToken, getMyProfile);
 
 export default router;
