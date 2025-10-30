@@ -1,4 +1,6 @@
 import React from "react";
+import { Link } from "react-router-dom";
+
 
 const Home = () => {
   return (
@@ -45,9 +47,11 @@ const Home = () => {
 
         <div className="flex items-center gap-4">
           <button className="text-sm hover:text-pink-400">🌐 Language</button>
-          <button className="bg-white text-black rounded-full px-5 py-2 text-sm font-semibold hover:bg-gray-200">
-            Log in
-          </button>
+          <Link to="/login">
+  <button className="bg-white text-black rounded-full px-5 py-2 text-sm font-semibold hover:bg-gray-200">
+    Log in
+  </button>
+</Link>
         </div>
       </nav>
 
@@ -56,9 +60,11 @@ const Home = () => {
         <h1 className="text-5xl md:text-7xl font-extrabold mb-8">
           Start something epic.
         </h1>
+        <Link to="/register">
         <button className="bg-pink-500 hover:bg-pink-600 text-white text-lg font-semibold px-8 py-3 rounded-full shadow-lg">
           Create account
         </button>
+        </Link>
       </div>
 
       {/* Cookie Consent */}

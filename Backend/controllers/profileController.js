@@ -190,7 +190,7 @@
 
 
 
-import Profile from "../models/Profile.js";
+import Profile from "../models/profile.js";
 
 // Create profile
 export const createOrUpdateProfile = async (req, res) => {
