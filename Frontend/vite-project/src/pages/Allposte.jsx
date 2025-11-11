@@ -146,20 +146,22 @@ export const Allposte = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex items-center">
       {/* Left Sidebar */}
-      <div className="w-[250px]">
+      <div className="flex">
         <LeftPage />
+        <div className="flex-1"></div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center w-[20%]">
+      <div className="flex-1 flex flex-col items-center justify-center w-[30%] md:w-[25%] lg:w-[20%]">
+
         <h1 className="text-3xl font-bold text-center mb-6 text-pink-600">
           🌸 Explore All Posts
         </h1>
 
         {loading ? (
-          <div className="flex justify-center items-center h-60">
+          <div className="flex justify-center items-center h-80">
             <p className="text-gray-500">Loading posts...</p>
           </div>
         ) : posts.length === 0 ? (
@@ -167,8 +169,8 @@ export const Allposte = () => {
             <p className="text-gray-500 text-lg">No posts available yet.</p>
           </div>
         ) : (
-          <div className="w-full flex justify-center">
-            <div className="w-[90%] md:w-[500px] lg:w-[600px]">
+          <div className="w-[40%] flex justify-center">
+            <div className="w-[40%] md:w-[250px] lg:w-[350px]">
               <Slider {...settings}>
                 {posts.map((post) => (
                   <div
