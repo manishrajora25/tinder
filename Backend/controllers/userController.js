@@ -173,6 +173,8 @@ export const loginUser = async (req, res) => {
   }
 };
 
+
+
 export const logoutUser = async (req, res) => {
   try {
     res.clearCookie("userToken", {
@@ -184,5 +186,24 @@ export const logoutUser = async (req, res) => {
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
     res.status(500).json({ error: "Logout failed" });
+  }
+};
+export const getMe = async (req, res) => {
+  try {
+    const user = req.user; // checkToken middleware se aata hai
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (err) {
+    console.error("❌ getMe error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };

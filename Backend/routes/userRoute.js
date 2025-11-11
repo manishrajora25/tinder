@@ -13,7 +13,9 @@
 
 
 import express from "express";
-import { registerUser, loginUser, logoutUser } from "../controllers/userController.js";
+import { registerUser, loginUser, logoutUser, getMe } from "../controllers/userController.js";
+
+import checkToken from "../middleware/checkToken.js";
 
 const router = express.Router();
 
@@ -83,6 +85,8 @@ router.post("/login", loginUser);
  *         description: Logout successful
  */
 router.post("/logout", logoutUser);
+
+router.get("/me", checkToken, getMe);
 
 
 

@@ -51,6 +51,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import Profile from './pages/Profile.jsx';
 import PostPage from './pages/Post.jsx';
+import Allposte from './pages/Allposte.jsx';
 
 
 const router = createBrowserRouter([
@@ -79,6 +80,11 @@ const router = createBrowserRouter([
   {
     path: "/PostPage",
     element: <PostPage />,
+  },
+
+  {
+    path: "/allposte",
+    element: <Allposte />,
   },
 
 
