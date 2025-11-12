@@ -133,7 +133,8 @@ const Login = () => {
       // ✅ Important: include withCredentials for cookies
       const res = await Instance.post("/user/login",{
          email, 
-         password },
+         password,
+         role: "user",  },
         { withCredentials: true } // 👈 cookie allow
       );
 
