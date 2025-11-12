@@ -131,9 +131,9 @@ const Login = () => {
     try {
       setLoading(true);
       // ✅ Important: include withCredentials for cookies
-      const res = await Instance.post(
-        "/user/login",
-        { email, password },
+      const res = await Instance.post("/user/login",{
+         email, 
+         password },
         { withCredentials: true } // 👈 cookie allow
       );
 
