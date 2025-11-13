@@ -115,7 +115,7 @@ export const registerUser = async (req, res) => {
     const newUser = new User({
       name,
       email,
-      password, // plain password, schema auto-hash करेगा
+      password, 
       image: imageUrl,
       role: role === "admin" ? "admin" : "User",
     });
