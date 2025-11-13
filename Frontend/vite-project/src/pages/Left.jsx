@@ -86,6 +86,7 @@ const fetchUser = async () => {
       <div className="bg-gradient-to-r from-pink-500 to-orange-400 p-4">
         <div className="max-w-md mx-auto flex items-center gap-3">
           {/* ✅ Profile image from post */}
+          <Link to="/PostPage">
           <img
             src={
               profileImage
@@ -95,6 +96,7 @@ const fetchUser = async () => {
             alt="profile"
             className="w-10 h-10 rounded-full ring-2 ring-white object-cover"
           />
+           </Link>
 
           <div className="flex-1 text-white font-semibold">
             {user ? user.name : "You"}
