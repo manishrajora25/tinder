@@ -355,7 +355,7 @@ export const Allposte = () => {
     <div className="flex">
       <LeftPage />
 
-      <div className="flex-1 flex flex-col items-center px-4">
+      <div className="flex-1 flex flex-col items-center px-4 ">
         <h1 className="text-3xl font-bold mb-6 text-pink-600">🌸 Explore All Posts</h1>
 
         {loading ? (
@@ -367,7 +367,8 @@ export const Allposte = () => {
             No posts available yet.
           </div>
         ) : (
-          <div className="w-full md:w-[280px] lg:w-[360px] relative">
+          <div className="w-full md:w-[280px] lg:w-[360px] relative h-[800px]">
+
             <Slider {...outerSettings}>
               {posts.map((post) => {
                 const totalImages = post.images?.length || 0;
@@ -389,8 +390,9 @@ export const Allposte = () => {
                 };
 
                 return (
-                  <div key={post._id} className="p-4">
-                    <div className="relative bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition">
+                  <div key={post._id} className="p-4 ">
+                  <div className="relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition">
+
                       <div className="relative">
                         {totalImages > 0 ? (
                           <>
@@ -430,7 +432,10 @@ export const Allposte = () => {
                         )}
                       </div>
 
-                      <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-5">
+                      <div className="flex justify-center gap-6 mt-[-5px] mb-[10px] ">
+
+
+
                         <button className="bg-gray-200 p-3 rounded-full shadow-md">
                           <X className="text-gray-600" size={22} />
                         </button>
