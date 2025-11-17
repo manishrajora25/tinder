@@ -86,3 +86,19 @@ export const rejectRequest = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+
+
+
+
+export const getSentRequests = async (req, res) => {
+  try {
+    const userId = req.user._id; // JWT middleware ke through
+    const sentRequests = await Request.find({ sender: userId })
+      .populate("receiver", "name image"); // receiver ka naam + image
+
+    res.status(200).json({ requests: sentRequests });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
