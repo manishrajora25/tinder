@@ -106,25 +106,24 @@
 
 
 
-
 import React, { useEffect, useState } from "react";
 import instance from "../AxiosConfig";
+import LeftPage from "./Left.jsx";
+import { useNavigate } from "react-router-dom";
 
 const Requests = () => {
-  const [user, setUser] = useState(null);         // logged user
-  const [requests, setRequests] = useState([]);   // received requests
+  const [user, setUser] = useState(null);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate();
+
   // ============================
-  // 1️⃣ Fetch logged in User
+  // Load Logged User
   // ============================
   const loadUser = async () => {
     try {
-      const res = await instance.get("/user/me", {
-        withCredentials: true,
-      });
-
-      console.log("User Loaded:", res.data.user);
+      const res = await instance.get("/user/me");
       setUser(res.data.user);
     } catch (err) {
       console.log("User Load Error:", err);
@@ -132,15 +131,11 @@ const Requests = () => {
   };
 
   // ============================
-  // 2️⃣ Fetch Received Requests
+  // Fetch Friend Requests
   // ============================
   const fetchRequests = async () => {
     try {
-      const res = await instance.get("/request/received", {
-        withCredentials: true,
-      });
-
-      console.log("Requests:", res.data.requests);
+      const res = await instance.get("/request/received");
       setRequests(res.data.requests || []);
     } catch (error) {
       console.log("Request Fetch Error:", error);
@@ -149,33 +144,48 @@ const Requests = () => {
   };
 
   // ============================
-  // 3️⃣ Accept Request
+  // Accept Request
   // ============================
   const handleAccept = async (id) => {
     try {
-      const res = await instance.put(`/request/accept/${id}`);
-      console.log("Request Accepted:", res.data);
-      fetchRequests();
+      await instance.put(`/request/accept/${id}`);
+
+      setRequests((prev) =>
+        prev.map((r) =>
+          r._id === id ? { ...r, status: "accepted" } : r
+        )
+      );
     } catch (error) {
       console.log(error);
     }
   };
 
   // ============================
-  // 4️⃣ Reject Request
+  // Reject Request
   // ============================
   const handleReject = async (id) => {
     try {
-      const res = await instance.put(`/request/reject/${id}`);
-      console.log("Reject Response:", res.data);
-      fetchRequests();
+      await instance.put(`/request/reject/${id}`);
+
+      setRequests((prev) =>
+        prev.map((r) =>
+          r._id === id ? { ...r, status: "rejected" } : r
+        )
+      );
     } catch (error) {
       console.log(error);
     }
   };
 
   // ============================
-  // RUN ON PAGE LOAD
+  // OPEN CHAT
+  // ============================
+  const goToChat = (friendId) => {
+    navigate(`/chat/${friendId}`);
+  };
+
+  // ============================
+  // ON PAGE LOAD
   // ============================
   useEffect(() => {
     const init = async () => {
@@ -188,48 +198,70 @@ const Requests = () => {
   if (loading) return <p className="p-4">Loading...</p>;
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Incoming Friend Requests</h2>
+    <div className="flex">
+      <LeftPage />
 
-      {requests.length === 0 ? (
-        <p className="text-gray-600">No incoming requests</p>
-      ) : (
-        requests.map((req) => (
-          <div
-            key={req._id}
-            className="flex items-center justify-between bg-white shadow p-3 rounded-md mb-3 border"
-          >
-            {/* USER IMAGE + NAME */}
-            <div className="flex items-center gap-3">
-            <img
-  src={req.sender?.image || "https://via.placeholder.com/80"}
-  className="w-20 h-20 rounded-full object-cover"
-/>
+      <div className="p-4 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold mb-4">Incoming Friend Requests</h2>
 
-              <span className="font-semibold text-lg">
-                {req.sender?.name || "Unknown User"}
-              </span>
+        {requests.length === 0 ? (
+          <p className="text-gray-600">No incoming requests</p>
+        ) : (
+          requests.map((req) => (
+            <div
+              key={req._id}
+              className="flex items-center justify-between bg-white shadow p-3 rounded-md mb-3 border"
+            >
+              {/* USER IMAGE + NAME */}
+              <div className="flex items-center gap-3">
+              <img
+            src={req.sender.image || "/default.png"}
+            alt="user"
+            className="w-16 h-16 rounded-full object-cover border"
+          />
+                <span className="font-semibold text-lg">
+                  {req.sender?.name || "Unknown User"}
+                </span>
+              </div>
+
+              {/* BUTTONS */}
+              <div className="flex gap-2">
+
+                {req.status === "pending" && (
+                  <>
+                    <button
+                      onClick={() => handleAccept(req._id)}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded"
+                    >
+                      Accept
+                    </button>
+
+                    <button
+                      onClick={() => handleReject(req._id)}
+                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+
+                {req.status === "accepted" && (
+                  <button
+                    onClick={() => goToChat(req.sender?._id)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1 rounded"
+                  >
+                    Message
+                  </button>
+                )}
+
+                {req.status === "rejected" && (
+                  <span className="text-red-600 font-semibold">Rejected</span>
+                )}
+              </div>
             </div>
-
-            {/* ACCEPT / REJECT BUTTONS */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleAccept(req._id)}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded"
-              >
-                Accept
-              </button>
-
-              <button
-                onClick={() => handleReject(req._id)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        ))
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };

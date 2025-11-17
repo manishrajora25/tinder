@@ -104,7 +104,7 @@ const fetchUser = async () => {
 
           {/* Top navigation icons */}
           <div className="flex gap-3">
-            <Link to="/post">
+            <Link to="/request">
               <Icon>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
