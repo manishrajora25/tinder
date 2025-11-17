@@ -67,4 +67,8 @@ router.delete("/delete/:id", checkToken, deletePost);
 
 router.get("/user/:id", getUserPosts);
 
+
+
+
+
 export default router;

@@ -75,6 +75,11 @@ import swaggerSpec from "./server/server.js";
 
 import postRoute from "./routes/postRoute.js";
 
+import requestRoute from "./routes/requestRoute.js";
+
+
+
+
 dotenv.config();
 
 const app = express();
@@ -120,6 +125,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/user", UserRoute);
 app.use("/profile", profileRoute);
 app.use("/post", postRoute);
+app.use("/request", requestRoute);
 
 
 app.listen(port, () => {
