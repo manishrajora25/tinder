@@ -81,7 +81,8 @@ const fetchUser = async () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className=" bg-gray-100 fixed top-0">
+
       {/* Top header */}
       <div className="bg-gradient-to-r from-pink-500 to-orange-400 p-4">
         <div className="max-w-md mx-auto flex items-center gap-3">

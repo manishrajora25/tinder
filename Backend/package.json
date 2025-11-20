@@ -23,6 +23,8 @@
     "multer-storage-cloudinary": "^4.0.0",
     "react-slick": "^0.31.0",
     "slick-carousel": "^1.8.1",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "stripe": "^18.5.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

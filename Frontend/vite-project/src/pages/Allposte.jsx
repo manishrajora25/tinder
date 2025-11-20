@@ -355,7 +355,7 @@ export const Allposte = () => {
     <div className="flex">
       <LeftPage />
 
-      <div className="flex-1 flex flex-col items-center px-4 ">
+      <div className="flex-1 flex flex-col items-center px-4 ml-[20%]">
         <h1 className="text-3xl font-bold mb-6 text-pink-600">🌸 Explore All Posts</h1>
 
         {loading ? (

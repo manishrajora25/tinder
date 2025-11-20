@@ -13,7 +13,7 @@
 
 
 import express from "express";
-import { registerUser, loginUser, logoutUser, getMe } from "../controllers/userController.js";
+import { registerUser, loginUser, logoutUser, getMe, getSingleUser } from "../controllers/userController.js";
 
 import checkToken from "../middleware/checkToken.js";
 
@@ -89,5 +89,10 @@ router.post("/logout", logoutUser);
 router.get("/me", checkToken, getMe);
 
 
+
+
+
+
+router.get("/:id", getSingleUser);
 
 export default router;
