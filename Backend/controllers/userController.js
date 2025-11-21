@@ -161,7 +161,7 @@ export const loginUser = async (req, res) => {
         httpOnly: true,
         secure: true, // true if you're using HTTPS in production
         sameSite: "None",
-        maxAge: 60 * 60 * 1000,
+        maxAge: 60 * 120 * 1000,
       })
       .send({
         message: "User Login Successfully",
