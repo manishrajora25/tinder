@@ -11,6 +11,8 @@ import Allposte from './pages/Allposte.jsx';
 import Request from './pages/Requests.jsx';
 import Friends from './pages/Friends.jsx';
 import ChatPage from './pages/ChatPage.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 
 const router = createBrowserRouter([
@@ -57,6 +59,20 @@ const router = createBrowserRouter([
   {
     path: "/ChatPage/:id",
     element: <ChatPage />,
+  },
+
+
+
+  {
+    path: "/ForgotPassword",
+    element: <ForgotPassword />,
+  },
+
+
+
+  {
+    path: "ResetPassword",
+    element: <ResetPassword />,
   },
 
  

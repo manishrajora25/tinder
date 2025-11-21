@@ -95,12 +95,18 @@
 
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
+import sgMail from "@sendgrid/mail";
 import bcrypt from "bcrypt";
 import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config();
+
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 export const registerUser = async (req, res) => {
   try {
@@ -225,3 +231,75 @@ export const getSingleUser = async (req, res) => {
     res.status(500).json({ message: "Server Error", error });
   }
 };
+
+
+
+
+
+
+
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    // Save OTP temporarily in DB
+    user.resetOtp = otp;
+    user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 min
+    await user.save();
+
+    // Send email via SendGrid
+    const msg = {
+      to: email,
+      from: process.env.FROM_EMAIL,
+      subject: "Your Password Reset OTP",
+      text: `Your OTP is: ${otp}`,
+      html: `<h2>Your OTP is: <b>${otp}</b></h2>`,
+    };
+
+    await sgMail.send(msg);
+
+    res.json({ message: "OTP sent successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+
+
+export const resetPassword = async (req, res) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+  
+      const user = await User.findOne({ email });
+      if (!user) return res.status(404).json({ message: "User not found" });
+  
+      if (user.resetOtp !== Number(otp))
+        return res.status(400).json({ message: "Invalid OTP" });
+  
+      if (user.resetOtpExpires < Date.now())
+        return res.status(400).json({ message: "OTP expired" });
+  
+      // Save new password
+      user.password = newPassword;
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+  
+      await user.save();
+  
+      res.json({ message: "Password reset successful" });
+  
+    } catch (err) {
+      res.status(500).json({ message: "Server error" });
+    }
+  };
+  

@@ -9,7 +9,10 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, default: "User" }, // default role
-    image: { type: String }, // optional image field
+    image: { type: String }, 
+    resetOtp: { type: Number },
+resetOtpExpires: { type: Date },
+// optional image field
   },
   { timestamps: true }
 );

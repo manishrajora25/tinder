@@ -105,9 +105,12 @@ const Login = () => {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
-            <p className="text-right text-sm mt-1 text-pink-600 cursor-pointer hover:underline">
-              FORGOT PASSWORD?
-            </p>
+            <p
+  onClick={() => navigate("/ForgotPassword")}
+  className="text-right text-sm mt-1 text-pink-600 cursor-pointer hover:underline">
+  FORGOT PASSWORD?
+</p>
+
           </div>
 
           <button

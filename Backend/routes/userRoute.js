@@ -13,9 +13,11 @@
 
 
 import express from "express";
-import { registerUser, loginUser, logoutUser, getMe, getSingleUser } from "../controllers/userController.js";
+
+import { registerUser, loginUser, logoutUser, getMe, getSingleUser, forgotPassword, resetPassword } from "../controllers/userController.js";
 
 import checkToken from "../middleware/checkToken.js";
+
 
 const router = express.Router();
 
@@ -94,5 +96,13 @@ router.get("/me", checkToken, getMe);
 
 
 router.get("/:id", getSingleUser);
+
+
+
+
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+
 
 export default router;
