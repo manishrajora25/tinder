@@ -418,10 +418,299 @@
 
 
 
+// import { useEffect, useState, useRef } from "react";
+// import { useParams, useNavigate } from "react-router-dom";
+// import { io } from "socket.io-client";
+// import Instance from "../AxiosConfig";
+// import LeftPage from "./Left.jsx";
+
+
+// // SOCKET CONNECTION
+// const socket = io(import.meta.env.VITE_BACKEND_URL, {
+//   withCredentials: true,
+//   transports: ["websocket"],
+// });
+
+// export default function ChatPage() {
+//   const { id: receiverId } = useParams();
+//   const navigate = useNavigate();
+
+//   const [senderId, setSenderId] = useState(null);
+//   const [receiverUser, setReceiverUser] = useState({});
+//   const [messages, setMessages] = useState([]);
+//   const [input, setInput] = useState("");
+//   const [isOnline, setIsOnline] = useState(false);
+//   const [typing, setTyping] = useState(false);
+//   const [chatList, setChatList] = useState([]);
+
+//   const [posts, setPosts] = useState([]);
+
+//   const [onlineUsers, setOnlineUsers] = useState({});
+
+//   // TYPING TIMEOUT REF
+//   const typingTimeoutRef = useRef(null);
+
+//   /* 1. Logged-in user */
+//   useEffect(() => {
+//     Instance.get("/user/me")
+//       .then((res) => {
+//         setSenderId(res.data.user._id);
+
+//         socket.emit("authenticate", {
+//           token: res.data.token || localStorage.getItem("token"),
+//         });
+//       })
+//       .catch(() => console.log("User not logged in"));
+//   }, []);
+
+//   /* 2. Load chat list */
+//   useEffect(() => {
+//     if (!senderId) return;
+
+//     Instance.get(`/send/recent/${senderId}`)
+//       .then((res) => setChatList(res.data.chats))
+//       .catch((err) => console.log(err));
+//   }, [senderId]);
+
+//   /* 3. Load receiver info */
+//   useEffect(() => {
+//     if (!receiverId) return;
+
+//     Instance.get(`/user/${receiverId}`)
+//       .then((res) => setReceiverUser(res.data.user))
+//       .catch((err) => console.log(err));
+//   }, [receiverId]);
+
+//   /* 4. Join chat room */
+//   useEffect(() => {
+//     if (!senderId || !receiverId) return;
+
+//     socket.emit("join-room", { senderId, receiverId });
+//     socket.emit("check-online", { receiverId });
+//   }, [senderId, receiverId]);
+
+//   /* 5. Load chat history */
+//   useEffect(() => {
+//     if (!senderId || !receiverId) return;
+
+//     Instance.get(`/send/get/message/${senderId}/${receiverId}`)
+//       .then((res) => setMessages(res.data.messages))
+//       .catch(() => console.log("Error fetching messages"));
+//   }, [senderId, receiverId]);
+
+//   /* 6. SOCKET LISTENERS */
+//   useEffect(() => {
+//     // NEW MESSAGE RECEIVED
+//     socket.on("receive_message", (msg) => {
+//       setMessages((prev) => [...prev, msg]);
+//       refreshChatList();
+//     });
+
+//     // USER ONLINE/OFFLINE
+//     socket.on("online-users", (users) => {
+//       setOnlineUsers(users);
+//     });
+
+//     // UPDATE ONLINE STATUS
+//     socket.on("user-online", (id) => id === receiverId && setIsOnline(true));
+//     socket.on("user-offline", (id) => id === receiverId && setIsOnline(false));
+
+//     // TYPING
+//     socket.on("typing", (data) => {
+//       if (data.senderId === receiverId) setTyping(true);
+//     });
+
+//     socket.on("stop-typing", (data) => {
+//       if (data.senderId === receiverId) setTyping(false);
+//     });
+
+//     return () => {
+//       socket.on("receive_message");
+//       socket.on("online-users");
+//       socket.on("user-online");
+//       socket.on("user-offline");
+//       socket.on("typing");
+//       socket.on("stop-typing");
+//     };
+//   }, [receiverId]);
+
+//   /* REFRESH CHAT LIST */
+//   const refreshChatList = () => {
+//     if (!senderId) return;
+
+//     Instance.get(`/send/recent/${senderId}`)
+//       .then((res) => setChatList(res.data.chats))
+//       .catch((err) => console.log(err));
+//   };
+
+//   /* SEND MESSAGE */
+//   const sendMessage = () => {
+//     if (!input.trim()) return;
+
+//     const msg = { senderId, receiverId, message: input };
+
+//     socket.emit("send_message", msg);
+//     setInput("");
+
+//     socket.emit("stop-typing", { senderId, receiverId });
+//   };
+
+//   /* HANDLE TYPING */
+//   const handleTyping = (e) => {
+//     setInput(e.target.value);
+
+//     socket.emit("typing", { senderId, receiverId });
+
+//     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+//     typingTimeoutRef.current = setTimeout(() => {
+//       socket.emit("stop-typing", { senderId, receiverId });
+//     }, 700);
+//   };
+
+
+
+//   const fetchAllPosts = async () => {
+//     try {
+//       const res = await instance.get("/post/feed", { withCredentials: true });
+//       if (res.data?.success) setPosts(res.data.posts);
+//       else setPosts([]);
+//     } catch (err) {
+//       console.error("❌ Error fetching posts:", err);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+
+//   useEffect(() => {
+//     fetchAllPosts();
+//   }, []);
+
+
+
+//   if (!senderId) return <div>Loading...</div>;
+
+//   return (
+// <div className="flex">
+//   <LeftPage />
+
+//   {/* MAIN WRAPPER */}
+//   <div className="flex h-screen w-full md:ml-[26%]">
+
+//     {/* LEFT SIDEBAR */}
+//     <div className="
+//         hidden md:block 
+//         w-[260px] lg:w-[300px] 
+//         bg-white border-r 
+//         overflow-y-auto
+//       "
+//     >
+//       <h2 className="p-4 text-lg font-semibold border-b">Chats</h2>
+
+//       {chatList.map((chat) => (
+//         <div
+//           key={chat.userId}
+//           onClick={() => navigate(`/ChatPage/${chat.userId}`)}
+//           className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
+//         >
+//           <img
+//             src={chat.image}
+//             className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+//           />
+
+//           <div className="flex-1">
+//             <h4 className="font-semibold flex items-center gap-2">
+//               {chat.name}
+//               {onlineUsers[chat.userId] && (
+//                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+//               )}
+//             </h4>
+//             <p className="text-sm text-gray-500 truncate">
+//               {chat.lastMessage}
+//             </p>
+//           </div>
+//         </div>
+//       ))}
+//     </div>
+
+//     {/* RIGHT CHAT AREA */}
+//     <div className="flex flex-col flex-1">
+
+//       {/* Header */}
+//       <div className="
+//           flex items-center gap-3 p-3 
+//           bg-gradient-to-r from-pink-500 to-orange-400 
+//           text-white
+//         "
+//       >
+//         <img
+//           src={
+//             receiverUser.image ||
+//             "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+//           }
+//           className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+//         />
+//         <div>
+//           <h2 className="text-base lg:text-lg font-semibold">{receiverUser.name}</h2>
+//           <p className="text-sm">
+//             {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
+//           </p>
+//         </div>
+//       </div>
+
+//       {/* Messages */}
+//       <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
+//         {messages.map((msg, i) => (
+//           <div
+//             key={i}
+//             className={`p-3 my-2 rounded-xl max-w-[75%] md:max-w-[40%] ${
+//               msg.senderId === senderId
+//                 ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
+//                 : "bg-white border shadow"
+//             }`}
+//           >
+//             {msg.message}
+//           </div>
+//         ))}
+//       </div>
+
+//       {/* Input */}
+//       <div className="flex p-2 sm:p-3 gap-2 bg-white shadow">
+//         <input
+//           className="border p-2 flex-1 rounded text-sm sm:text-base"
+//           value={input}
+//           onChange={handleTyping}
+//           placeholder="Type a message..."
+//         />
+//         <button
+//           className="bg-blue-600 text-white px-3 sm:px-4 rounded text-sm sm:text-base"
+//           onClick={sendMessage}
+//         >
+//           Send
+//         </button>
+//       </div>
+
+//     </div>
+//   </div>
+// </div>
+
+//   );
+// }
+
+
+
+
+
+
+
+
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import Instance from "../AxiosConfig";
+import LeftPage from "./Left.jsx";
 
 // SOCKET CONNECTION
 const socket = io(import.meta.env.VITE_BACKEND_URL, {
@@ -441,9 +730,9 @@ export default function ChatPage() {
   const [typing, setTyping] = useState(false);
   const [chatList, setChatList] = useState([]);
 
+  const [posts, setPosts] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState({});
 
-  // TYPING TIMEOUT REF
   const typingTimeoutRef = useRef(null);
 
   /* 1. Logged-in user */
@@ -496,22 +785,29 @@ export default function ChatPage() {
 
   /* 6. SOCKET LISTENERS */
   useEffect(() => {
-    // NEW MESSAGE RECEIVED
     socket.on("receive_message", (msg) => {
+      // Check message belongs to the currently opened chat
+      const isCurrentChat =
+        (msg.senderId === receiverId && msg.receiverId === senderId) ||
+        (msg.senderId === senderId && msg.receiverId === receiverId);
+    
+      if (!isCurrentChat) {
+        // Update chat list only
+        refreshChatList();
+        return; // ❌ Do NOT add message in wrong chat window
+      }
+    
+      // Add message only for the correct chat
       setMessages((prev) => [...prev, msg]);
       refreshChatList();
     });
+    
 
-    // USER ONLINE/OFFLINE
-    socket.on("online-users", (users) => {
-      setOnlineUsers(users);
-    });
+    socket.on("online-users", (users) => setOnlineUsers(users));
 
-    // UPDATE ONLINE STATUS
     socket.on("user-online", (id) => id === receiverId && setIsOnline(true));
     socket.on("user-offline", (id) => id === receiverId && setIsOnline(false));
 
-    // TYPING
     socket.on("typing", (data) => {
       if (data.senderId === receiverId) setTyping(true);
     });
@@ -564,92 +860,142 @@ export default function ChatPage() {
     }, 700);
   };
 
+  // ⬇⬇⬇ NEW FUNCTION YOU ADDED (WITHOUT CHANGING ANY CODE) ⬇⬇⬇
+  const fetchAllPosts = async () => {
+    try {
+      const res = await Instance.get("/post/feed", { withCredentials: true });
+      if (res.data?.success) setPosts(res.data.posts);
+      
+      else setPosts([]);
+      console.log("data",res);
+    } catch (err) {
+      console.error("❌ Error fetching posts:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllPosts();
+  }, []);
+
+  // 👉 Function to find first post image of a user  
+  const getUserFirstPostImage = (userId) => {
+    const userPosts = posts.filter((p) => p.userId?._id === userId);
+  
+    if (userPosts.length === 0) return null;
+  
+    const firstPost = userPosts[0];
+  
+    if (firstPost.images?.length > 0) {
+      return firstPost.images[0];
+    }
+  
+    return null;
+  };
+  
+
   if (!senderId) return <div>Loading...</div>;
 
   return (
-    <div className="flex h-screen">
+    <div className="flex">
+      <LeftPage />
 
-      {/* LEFT SIDEBAR */}
-      <div className="w-[300px] bg-white border-r overflow-y-auto">
-        <h2 className="p-4 text-lg font-semibold border-b">Chats</h2>
+      <div className="flex h-screen w-full md:ml-[26%]">
+        {/* LEFT SIDEBAR */}
+        <div className="hidden md:block w-[260px] lg:w-[300px] bg-white border-r overflow-y-auto">
+          <h2 className="p-4 text-lg font-semibold border-b">All Chats</h2>
 
-        {chatList.map((chat) => (
-          <div
-            key={chat.userId}
-            onClick={() => navigate(`/ChatPage/${chat.userId}`)}
-            className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
-          >
-            <img src={chat.image} className="w-12 h-12 rounded-full" />
+          {chatList.map((chat) => {
+            const postImage = getUserFirstPostImage(chat.userId);
 
-            <div className="flex-1">
-              <h4 className="font-semibold flex items-center gap-2">
-                {chat.name}
+            return (
+              <div
+                key={chat.userId}
+                onClick={() => navigate(`/ChatPage/${chat.userId}`)}
+                className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
+              >
+                <img
+                  src={
+                    postImage ||
+                    chat.image ||
+                    "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                  }
+                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+                />
 
-                {onlineUsers[chat.userId] && (
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                )}
-              </h4>
+                <div className="flex-1">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    {chat.name}
+                    {onlineUsers[chat.userId] && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    )}
+                  </h4>
+                  <div className="flex items-center justify-between">
+  <p className="text-sm text-gray-500 truncate flex-1">
+    {chat.lastMessage}
+  </p>
 
-              <p className="text-sm text-gray-500 truncate">
-                {chat.lastMessage}
+  {chat.unreadCount > 0 && (
+    <span className="w-2 h-2 bg-blue-600 rounded-full ml-2"></span>
+  )}
+</div>
+
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* RIGHT CHAT AREA */}
+        <div className="flex flex-col flex-1">
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white">
+            <img
+              src={
+                receiverUser.image ||
+                getUserFirstPostImage(receiverUser._id) ||
+                "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+              }
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+            />
+            <div>
+              <h2 className="text-base lg:text-lg font-semibold">
+                {receiverUser.name}
+              </h2>
+              <p className="text-sm">
+                {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
               </p>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* RIGHT CHAT AREA */}
-      <div className="flex flex-col flex-1">
+          <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`p-3 my-2 rounded-xl max-w-[75%] md:max-w-[40%] ${
+                  msg.senderId === senderId
+                    ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
+                    : "bg-white border shadow"
+                }`}
+              >
+                {msg.message}
+              </div>
+            ))}
+          </div>
 
-        {/* Header */}
-        <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white">
-          <img
-            src={
-              receiverUser.image || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-            }
-            className="w-12 h-12 rounded-full"
-          />
-
-          <div>
-            <h2 className="text-lg font-semibold">{receiverUser.name}</h2>
-            <p>
-              {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
-            </p>
+          <div className="flex p-2 sm:p-3 gap-2 bg-white shadow">
+            <input
+              className="border p-2 flex-1 rounded text-sm sm:text-base"
+              value={input}
+              onChange={handleTyping}
+              placeholder="Type a message..."
+            />
+            <button
+              className="bg-blue-600 text-white px-3 sm:px-4 rounded text-sm sm:text-base"
+              onClick={sendMessage}
+            >
+              Send
+            </button>
           </div>
         </div>
-
-        {/* Messages */}
-        <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`p-3 my-2 rounded-xl max-w-[25%] ${
-                msg.senderId === senderId
-                  ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
-                  : "bg-white border shadow"
-              }`}
-            >
-              {msg.message}
-            </div>
-          ))}
-        </div>
-
-        {/* Input */}
-        <div className="flex p-3 gap-2 bg-white shadow">
-          <input
-            className="border p-2 flex-1 rounded"
-            value={input}
-            onChange={handleTyping}
-            placeholder="Type a message..."
-          />
-          <button
-            className="bg-blue-600 text-white px-4 rounded"
-            onClick={sendMessage}
-          >
-            Send
-          </button>
-        </div>
-
       </div>
     </div>
   );

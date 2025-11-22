@@ -617,7 +617,7 @@ const PostPage = () => {
                           <div key={i}>
                             <img
                               src={img}
-                              className="w-full h-64 object-cover rounded-xl border"
+                              className="w-full h-95 object-cover rounded-xl border"
                             />
                           </div>
                         ))}
