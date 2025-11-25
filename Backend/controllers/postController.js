@@ -182,6 +182,7 @@ export const getOtherPosts = async (req, res) => {
 };
 
 // 🟡 UPDATE POST (PUT)
+// 🟡 UPDATE POST (PUT)
 export const updatePost = async (req, res) => {
   try {
     const postId = req.params.id;
@@ -191,26 +192,49 @@ export const updatePost = async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // ✅ Authorization check
     if (post.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    // ✅ Update text fields
-    post.title = req.body.title || post.title;
-    post.description = req.body.description || post.description;
-
-    // ✅ If new files uploaded, append them (keep old ones)
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map((file) => file.path);
-      post.images = [...post.images, ...newImages].slice(0, 9); // 👈 combine + limit 9
+    // ---------- REQUIRED VALIDATION ----------
+    if (!req.body.title || !req.body.description) {
+      return res.status(400).json({
+        message: "Title and Description are required",
+      });
     }
+
+    // ---------- MERGE IMAGES ----------
+    let oldImgs = [];
+    if (req.body.oldImages) {
+      oldImgs = Array.isArray(req.body.oldImages)
+        ? req.body.oldImages
+        : [req.body.oldImages];
+    }
+
+    let newImgs = [];
+    if (req.files && req.files.length > 0) {
+      newImgs = req.files.map((file) => file.path);
+    }
+
+    const finalImages = [...oldImgs, ...newImgs];
+
+    // ---------- MINIMUM 2 IMAGES CHECK ----------
+    if (finalImages.length < 2) {
+      return res.status(400).json({
+        message: "At least 2 images are required",
+      });
+    }
+
+    // ---------- UPDATE ----------
+    post.title = req.body.title;
+    post.description = req.body.description;
+    post.images = finalImages.slice(0, 9);
 
     await post.save();
 
     res.status(200).json({
       success: true,
-      message: "✅ Post updated successfully",
+      message: "✔ Post updated successfully",
       post,
     });
   } catch (error) {
@@ -218,6 +242,8 @@ export const updatePost = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 
 

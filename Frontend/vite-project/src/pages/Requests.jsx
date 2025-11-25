@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import instance from "../AxiosConfig";
 import LeftPage from "./Left.jsx";
 import { useNavigate } from "react-router-dom";
+import Footer from "../component/Footer.jsx";
 
 const Requests = () => {
   const [user, setUser] = useState(null);
@@ -115,10 +116,29 @@ const Requests = () => {
   if (loading) return <p className="p-4">Loading...</p>;
 
   return (
+    <div className="flex items-center">
     <div className="flex">
+    {/* Desktop Left Sidebar */}
+    <div className="hidden md:flex">
       <LeftPage />
+    </div>
+  
+    {/* Main Content */}
+    <div className="flex-1 flex justify-center bg-gray-100 p-4 ">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full max-w-sm">
+        {/* ---- YOUR POST PAGE CODE ---- */}
+        { /* SAME as you wrote */ }
+      </div>
+    </div>
+  </div>
+  
+  {/* Mobile Footer */}
+  <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white z-50 shadow-lg">
+    <Footer />
+  </div>
 
-      <div className="p-4 max-w-2xl mx-auto ml-[45%]">
+  <div className="p-4 max-w-2xl mx-auto w-full md:ml-[400px] ml-[50px]">
+
 
         <h2 className="text-2xl font-bold mb-4">Notifications</h2>
 

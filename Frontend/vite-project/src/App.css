@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+.swipe-right {
+    transform: translateX(200px) rotate(15deg);
+    opacity: 0;
+    transition: all 0.3s ease-out;
+  }
+  
