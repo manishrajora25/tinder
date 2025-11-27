@@ -40,6 +40,7 @@ import {
   updatePost,
   deletePost,
   getUserPosts,
+  getUserProfile,
 } from "../controllers/postController.js";
 import upload from "../middleware/cloudinaryUpload.js";
 import checkToken from "../middleware/checkToken.js";
@@ -69,6 +70,8 @@ router.get("/user/:id", getUserPosts);
 
 
 
+
+router.get("/profile/:id", checkToken, getUserProfile);
 
 
 export default router;

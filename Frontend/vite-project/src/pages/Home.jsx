@@ -29,12 +29,8 @@ const Home = () => {
       {/* Navbar */}
       <nav className="w-full flex justify-between items-center px-10 py-4 z-20">
         <div className="flex items-center space-x-2">
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Tinder_flame_logo.svg"
-            alt="Tinder logo"
-            className="w-8 h-8"
-          />
-          <span className="text-2xl font-bold">tinder</span>
+        
+          <span className="text-2xl font-bold">Tinder</span>
         </div>
 
         <ul className="hidden md:flex space-x-8 text-sm font-semibold">
