@@ -472,10 +472,14 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import instance from "../AxiosConfig.js"; // Axios instance
+import { useNavigate } from "react-router-dom";
+
 
 export default function LeftPage() {
   const [profileImage, setProfileImage] = useState("");
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
 
   // Get current logged-in user
   const fetchUser = async () => {
@@ -615,17 +619,20 @@ border-r border-gray-200 overflow-y-auto backdrop-blur-md">
           </span>
         </Link>
 
-        <div className="flex items-center gap-3 group text-gray-700 hover:text-indigo-600 cursor-pointer">
-          <Icon>
-            <svg className="w-6 h-6 group-hover:rotate-12 transition-all duration-300"
-                 viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4 4h12v14H4zM20 6h-2v12h2z" />
-            </svg>
-          </Icon>
-          <span className="font-semibold group-hover:tracking-wide transition-all duration-300">
-            Insights
-          </span>
-        </div>
+        <div
+  className="flex items-center gap-3 group text-gray-700 hover:text-indigo-600 cursor-pointer"
+  onClick={() => navigate(`/profile/${user?._id}`)}
+>
+  <Icon>
+    <svg className="w-6 h-6 group-hover:rotate-12 transition-all duration-300"
+         viewBox="0 0 24 24" fill="currentColor">
+      <path d="M4 4h12v14H4zM20 6h-2v12h2z" />
+    </svg>
+  </Icon>
+  <span className="font-semibold group-hover:tracking-wide transition-all duration-300">
+    Profile
+  </span>
+</div>
 
         <div className="flex items-center gap-3 group text-gray-700 hover:text-pink-600 cursor-pointer">
           <Icon>

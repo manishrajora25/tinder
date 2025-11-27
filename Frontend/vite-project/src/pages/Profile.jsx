@@ -178,6 +178,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import instance from "../AxiosConfig";
+import LeftPage from "./Left";
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -213,6 +214,13 @@ export default function ProfilePage() {
       : "/default.png");
 
   return (
+
+<div className="">
+
+    <div className="">
+      <LeftPage/>
+    </div>
+
     <div className="max-w-3xl mx-auto p-4">
 
       {/* USER DETAILS */}
@@ -225,6 +233,13 @@ export default function ProfilePage() {
 
         <h1 className="text-2xl font-bold mt-3">{user.name}</h1>
         <p className="text-gray-600">{user.email}</p>
+         {/* TITLE */}
+         <h3 className="text-lg font-semibold text-gray-800">
+                {posts.title}
+              </h3>
+
+              {/* DESCRIPTION */}
+              <p className="text-gray-600 mt-1">{posts.description}</p>
       </div>
 
       <div className="border-b my-6"></div>
@@ -254,17 +269,12 @@ export default function ProfilePage() {
 </div>
 
 
-              {/* TITLE */}
-              <h3 className="text-lg font-semibold text-gray-800">
-                {post.title}
-              </h3>
-
-              {/* DESCRIPTION */}
-              <p className="text-gray-600 mt-1">{post.description}</p>
+             
             </div>
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }
