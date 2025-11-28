@@ -706,6 +706,329 @@
 
 
 
+// import { useEffect, useState, useRef } from "react";
+// import { useParams, useNavigate } from "react-router-dom";
+// import { io } from "socket.io-client";
+// import Instance from "../AxiosConfig";
+// import LeftPage from "./Left.jsx";
+
+// // SOCKET CONNECTION
+// const socket = io(import.meta.env.VITE_BACKEND_URL, {
+//   withCredentials: true,
+//   transports: ["websocket"],
+// });
+
+// export default function ChatPage() {
+//   const { id: receiverId } = useParams();
+//   const navigate = useNavigate();
+
+//   const [senderId, setSenderId] = useState(null);
+//   const [receiverUser, setReceiverUser] = useState({});
+//   const [messages, setMessages] = useState([]);
+//   const [input, setInput] = useState("");
+//   const [isOnline, setIsOnline] = useState(false);
+//   const [typing, setTyping] = useState(false);
+//   const [chatList, setChatList] = useState([]);
+
+//   const [posts, setPosts] = useState([]);
+//   const [onlineUsers, setOnlineUsers] = useState({});
+
+//   const typingTimeoutRef = useRef(null);
+
+//   /* 1. Logged-in user */
+//   useEffect(() => {
+//     Instance.get("/user/me")
+//       .then((res) => {
+//         setSenderId(res.data.user._id);
+
+//         socket.emit("authenticate", {
+//           token: res.data.token || localStorage.getItem("token"),
+//         });
+//       })
+//       .catch(() => console.log("User not logged in"));
+//   }, []);
+
+//   /* 2. Load chat list */
+//   useEffect(() => {
+//     if (!senderId) return;
+
+//     Instance.get(`/send/recent/${senderId}`)
+//       .then((res) => setChatList(res.data.chats))
+//       .catch((err) => console.log(err));
+//   }, [senderId]);
+
+//   /* 3. Load receiver info */
+//   useEffect(() => {
+//     if (!receiverId) return;
+
+//     Instance.get(`/user/${receiverId}`)
+//       .then((res) => setReceiverUser(res.data.user))
+//       .catch((err) => console.log(err));
+//   }, [receiverId]);
+
+//   /* 4. Join chat room */
+//   useEffect(() => {
+//     if (!senderId || !receiverId) return;
+
+//     socket.emit("join-room", { senderId, receiverId });
+//     socket.emit("check-online", { receiverId });
+//   }, [senderId, receiverId]);
+
+//   /* 5. Load chat history */
+//   useEffect(() => {
+//     if (!senderId || !receiverId) return;
+
+//     Instance.get(`/send/get/message/${senderId}/${receiverId}`)
+//       .then((res) => setMessages(res.data.messages))
+//       .catch(() => console.log("Error fetching messages"));
+//   }, [senderId, receiverId]);
+
+//   /* 6. SOCKET LISTENERS */
+//   useEffect(() => {
+//     socket.on("receive_message", (msg) => {
+//       // Check message belongs to the currently opened chat
+//       const isCurrentChat =
+//         (msg.senderId === receiverId && msg.receiverId === senderId) ||
+//         (msg.senderId === senderId && msg.receiverId === receiverId);
+    
+//       if (!isCurrentChat) {
+//         // Update chat list only
+//         refreshChatList();
+//         return; // ❌ Do NOT add message in wrong chat window
+//       }
+    
+//       // Add message only for the correct chat
+//       setMessages((prev) => [...prev, msg]);
+//       refreshChatList();
+//     });
+    
+
+//     socket.on("online-users", (users) => setOnlineUsers(users));
+
+//     socket.on("user-online", (id) => id === receiverId && setIsOnline(true));
+//     socket.on("user-offline", (id) => id === receiverId && setIsOnline(false));
+
+//     socket.on("typing", (data) => {
+//       if (data.senderId === receiverId) setTyping(true);
+//     });
+
+//     socket.on("stop-typing", (data) => {
+//       if (data.senderId === receiverId) setTyping(false);
+//     });
+
+//     return () => {
+//       socket.off("receive_message");
+//       socket.off("online-users");
+//       socket.off("user-online");
+//       socket.off("user-offline");
+//       socket.off("typing");
+//       socket.off("stop-typing");
+//     };
+//   }, [receiverId]);
+
+//   /* REFRESH CHAT LIST */
+//   const refreshChatList = () => {
+//     if (!senderId) return;
+
+//     Instance.get(`/send/recent/${senderId}`)
+//       .then((res) => setChatList(res.data.chats))
+//       .catch((err) => console.log(err));
+//   };
+
+//   /* SEND MESSAGE */
+//   const sendMessage = () => {
+//     if (!input.trim()) return;
+
+//     const msg = { senderId, receiverId, message: input };
+
+//     socket.emit("send_message", msg);
+//     setInput("");
+
+//     socket.emit("stop-typing", { senderId, receiverId });
+//   };
+
+//   /* HANDLE TYPING */
+//   const handleTyping = (e) => {
+//     setInput(e.target.value);
+
+//     socket.emit("typing", { senderId, receiverId });
+
+//     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+//     typingTimeoutRef.current = setTimeout(() => {
+//       socket.emit("stop-typing", { senderId, receiverId });
+//     }, 700);
+//   };
+
+//   // ⬇⬇⬇ NEW FUNCTION YOU ADDED (WITHOUT CHANGING ANY CODE) ⬇⬇⬇
+//   const fetchAllPosts = async () => {
+//     try {
+//       const res = await Instance.get("/post/feed", { withCredentials: true });
+//       if (res.data?.success) setPosts(res.data.posts);
+      
+//       else setPosts([]);
+//       console.log("data",res);
+//     } catch (err) {
+//       console.error("❌ Error fetching posts:", err);
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchAllPosts();
+//   }, []);
+
+//   // 👉 Function to find first post image of a user  
+//   const getUserFirstPostImage = (userId) => {
+//     const userPosts = posts.filter((p) => p.userId?._id === userId);
+  
+//     if (userPosts.length === 0) return null;
+  
+//     const firstPost = userPosts[0];
+  
+//     if (firstPost.images?.length > 0) {
+//       return firstPost.images[0];
+//     }
+  
+//     return null;
+//   };
+  
+
+//   if (!senderId) return <div>Loading...</div>;
+
+//   return (
+//     <div className="flex">
+//       <LeftPage />
+
+//       <div className="flex h-screen w-full md:ml-[26%]">
+//         {/* LEFT SIDEBAR */}
+//         <div className="hidden md:block w-[260px] lg:w-[300px] bg-white border-r overflow-y-auto">
+//           <h2 className="p-4 text-lg font-semibold border-b">All Chats</h2>
+
+//           {chatList.map((chat) => {
+//             const postImage = getUserFirstPostImage(chat.userId);
+
+//             return (
+//               <div
+//                 key={chat.userId}
+//                 onClick={() => navigate(`/ChatPage/${chat.userId}`)}
+//                 className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
+//               >
+//                 <img
+//                   src={
+//                     postImage ||
+//                     chat.image ||
+//                     "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+//                   }
+//                   className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+//                 />
+
+//                 <div className="flex-1">
+//                   <h4 className="font-semibold flex items-center gap-2">
+//                     {chat.name}
+//                     {onlineUsers[chat.userId] && (
+//                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+//                     )}
+//                   </h4>
+//                   <div className="flex items-center justify-between">
+//   <p className="text-sm text-gray-500 truncate flex-1">
+//     {chat.lastMessage}
+//   </p>
+
+//   {chat.unreadCount > 0 && (
+//     <span className="w-2 h-2 bg-blue-600 rounded-full ml-2"></span>
+//   )}
+// </div>
+
+//                 </div>
+//               </div>
+//             );
+//           })}
+//         </div>
+
+//         {/* RIGHT CHAT AREA */}
+//         <div className="flex flex-col flex-1">
+//           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white">
+//             <img
+//               src={
+//                 receiverUser.image ||
+//                 getUserFirstPostImage(receiverUser._id) ||
+//                 "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+//               }
+//               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+//             />
+//             <div>
+//               <h2 className="text-base lg:text-lg font-semibold">
+//                 {receiverUser.name}
+//               </h2>
+//               <p className="text-sm">
+//                 {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
+//               </p>
+//             </div>
+
+
+// {/* CALL BUTTONS */}
+// <div className="ml-auto flex gap-3">
+//   <button
+//     onClick={() => startCall("audio")}
+//     className="bg-green-600 px-3 py-1 rounded text-white text-sm cursor-pointer"
+//   >
+//     📞 Call
+//   </button>
+
+//   <button
+//     onClick={() => startCall("video")}
+//     className="bg-purple-600 px-3 py-1 rounded text-white text-sm cursor-pointer"
+//   >
+//     📹 Video
+//   </button>
+// </div>
+
+
+
+
+//           </div>
+
+//           <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
+//             {messages.map((msg, i) => (
+//               <div
+//                 key={i}
+//                 className={`p-3 my-2 rounded-xl max-w-[75%] md:max-w-[40%] ${
+//                   msg.senderId === senderId
+//                     ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
+//                     : "bg-white border shadow"
+//                 }`}
+//               >
+//                 {msg.message}
+//               </div>
+//             ))}
+//           </div>
+
+//           <div className="flex p-2 sm:p-3 gap-2 bg-white shadow">
+//             <input
+//               className="border p-2 flex-1 rounded text-sm sm:text-base"
+//               value={input}
+//               onChange={handleTyping}
+//               placeholder="Type a message..."
+//             />
+//             <button
+//               className="bg-blue-600 text-white px-3 sm:px-4 rounded text-sm sm:text-base"
+//               onClick={sendMessage}
+//             >
+//               Send
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -734,6 +1057,17 @@ export default function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState({});
 
   const typingTimeoutRef = useRef(null);
+
+  // ================= CALL STATES =================
+  const [callType, setCallType] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [callActive, setCallActive] = useState(false);
+
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const peerRef = useRef(null);
+  const localStreamRef = useRef(null);
 
   /* 1. Logged-in user */
   useEffect(() => {
@@ -786,24 +1120,14 @@ export default function ChatPage() {
   /* 6. SOCKET LISTENERS */
   useEffect(() => {
     socket.on("receive_message", (msg) => {
-      // Check message belongs to the currently opened chat
       const isCurrentChat =
         (msg.senderId === receiverId && msg.receiverId === senderId) ||
         (msg.senderId === senderId && msg.receiverId === receiverId);
-    
-      if (!isCurrentChat) {
-        // Update chat list only
-        refreshChatList();
-        return; // ❌ Do NOT add message in wrong chat window
-      }
-    
-      // Add message only for the correct chat
-      setMessages((prev) => [...prev, msg]);
-      refreshChatList();
-    });
-    
 
-    socket.on("online-users", (users) => setOnlineUsers(users));
+      if (!isCurrentChat) return;
+
+      setMessages((prev) => [...prev, msg]);
+    });
 
     socket.on("user-online", (id) => id === receiverId && setIsOnline(true));
     socket.on("user-offline", (id) => id === receiverId && setIsOnline(false));
@@ -818,7 +1142,6 @@ export default function ChatPage() {
 
     return () => {
       socket.off("receive_message");
-      socket.off("online-users");
       socket.off("user-online");
       socket.off("user-offline");
       socket.off("typing");
@@ -826,24 +1149,13 @@ export default function ChatPage() {
     };
   }, [receiverId]);
 
-  /* REFRESH CHAT LIST */
-  const refreshChatList = () => {
-    if (!senderId) return;
-
-    Instance.get(`/send/recent/${senderId}`)
-      .then((res) => setChatList(res.data.chats))
-      .catch((err) => console.log(err));
-  };
-
   /* SEND MESSAGE */
   const sendMessage = () => {
     if (!input.trim()) return;
 
     const msg = { senderId, receiverId, message: input };
-
     socket.emit("send_message", msg);
     setInput("");
-
     socket.emit("stop-typing", { senderId, receiverId });
   };
 
@@ -860,38 +1172,147 @@ export default function ChatPage() {
     }, 700);
   };
 
-  // ⬇⬇⬇ NEW FUNCTION YOU ADDED (WITHOUT CHANGING ANY CODE) ⬇⬇⬇
-  const fetchAllPosts = async () => {
-    try {
-      const res = await Instance.get("/post/feed", { withCredentials: true });
-      if (res.data?.success) setPosts(res.data.posts);
-      
-      else setPosts([]);
-      console.log("data",res);
-    } catch (err) {
-      console.error("❌ Error fetching posts:", err);
-    }
-  };
-
+  // ================= CALL SOCKET LISTENERS =================
   useEffect(() => {
-    fetchAllPosts();
+    socket.on("incoming-call", (data) => {
+      setIncomingCall(data);
+      setCallType(data.type);
+      setCallActive(true);
+    });
+
+    socket.on("call-accepted", async (data) => {
+      await peerRef.current.setRemoteDescription(data.answer);
+      setCallActive(true);
+    });
+
+    socket.on("webrtc-ice", (data) => {
+      peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    return () => {
+      socket.off("incoming-call");
+      socket.off("call-accepted");
+      socket.off("webrtc-ice");
+    };
   }, []);
 
-  // 👉 Function to find first post image of a user  
-  const getUserFirstPostImage = (userId) => {
-    const userPosts = posts.filter((p) => p.userId?._id === userId);
-  
-    if (userPosts.length === 0) return null;
-  
-    const firstPost = userPosts[0];
-  
-    if (firstPost.images?.length > 0) {
-      return firstPost.images[0];
+  // ================= START CALL =================
+  const startCall = async (type) => {
+    setCallType(type);
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: type === "video",
+    });
+
+    localStreamRef.current = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
     }
-  
-    return null;
+
+    peerRef.current = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
+    stream.getTracks().forEach((track) =>
+      peerRef.current.addTrack(track, stream)
+    );
+
+    peerRef.current.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.emit("webrtc-ice", {
+          to: receiverId,
+          candidate: e.candidate,
+        });
+      }
+    };
+
+    peerRef.current.ontrack = (e) => {
+      remoteVideoRef.current.srcObject = e.streams[0];
+    };
+
+    const offer = await peerRef.current.createOffer();
+    await peerRef.current.setLocalDescription(offer);
+
+    socket.emit("call-user", {
+      to: receiverId,
+      from: senderId,
+      type,
+      offer,
+    });
   };
-  
+
+  // ================= ACCEPT CALL =================
+  const acceptCall = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: callType === "video",
+    });
+
+    localStreamRef.current = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+
+    peerRef.current = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
+
+    stream.getTracks().forEach((track) =>
+      peerRef.current.addTrack(track, stream)
+    );
+
+    peerRef.current.ontrack = (e) => {
+      remoteVideoRef.current.srcObject = e.streams[0];
+    };
+
+    peerRef.current.onicecandidate = (e) => {
+      if (e.candidate) {
+        socket.emit("webrtc-ice", {
+          to: incomingCall.from,
+          candidate: e.candidate,
+        });
+      }
+    };
+
+    await peerRef.current.setRemoteDescription(incomingCall.offer);
+
+    const answer = await peerRef.current.createAnswer();
+    await peerRef.current.setLocalDescription(answer);
+
+    socket.emit("accept-call", {
+      to: incomingCall.from,
+      answer,
+    });
+
+    setIncomingCall(null);
+  };
+
+  // ================= END CALL =================
+  const endCall = () => {
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+
+    setCallType(null);
+    setIncomingCall(null);
+    setCallActive(false);
+    setIsMuted(false);
+  };
+
+  // ================= MUTE / UNMUTE =================
+  const toggleMute = () => {
+    if (!localStreamRef.current) return;
+
+    const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    audioTrack.enabled = !audioTrack.enabled;
+    setIsMuted(!audioTrack.enabled);
+  };
 
   if (!senderId) return <div>Loading...</div>;
 
@@ -900,80 +1321,68 @@ export default function ChatPage() {
       <LeftPage />
 
       <div className="flex h-screen w-full md:ml-[26%]">
-        {/* LEFT SIDEBAR */}
-        <div className="hidden md:block w-[260px] lg:w-[300px] bg-white border-r overflow-y-auto">
-          <h2 className="p-4 text-lg font-semibold border-b">All Chats</h2>
-
-          {chatList.map((chat) => {
-            const postImage = getUserFirstPostImage(chat.userId);
-
-            return (
-              <div
-                key={chat.userId}
-                onClick={() => navigate(`/ChatPage/${chat.userId}`)}
-                className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
-              >
-                <img
-                  src={
-                    postImage ||
-                    chat.image ||
-                    "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                  }
-                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
-                />
-
-                <div className="flex-1">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    {chat.name}
-                    {onlineUsers[chat.userId] && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    )}
-                  </h4>
-                  <div className="flex items-center justify-between">
-  <p className="text-sm text-gray-500 truncate flex-1">
-    {chat.lastMessage}
-  </p>
-
-  {chat.unreadCount > 0 && (
-    <span className="w-2 h-2 bg-blue-600 rounded-full ml-2"></span>
-  )}
-</div>
-
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
         {/* RIGHT CHAT AREA */}
         <div className="flex flex-col flex-1">
+          {/* HEADER */}
           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white">
             <img
               src={
                 receiverUser.image ||
-                getUserFirstPostImage(receiverUser._id) ||
                 "https://cdn-icons-png.flaticon.com/512/149/149071.png"
               }
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+              className="w-10 h-10 rounded-full"
             />
             <div>
-              <h2 className="text-base lg:text-lg font-semibold">
-                {receiverUser.name}
-              </h2>
+              <h2 className="font-semibold">{receiverUser.name}</h2>
               <p className="text-sm">
                 {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
               </p>
             </div>
+
+            {/* CALL BUTTONS */}
+            <div className="ml-auto flex gap-2">
+              <button
+                onClick={() => startCall("audio")}
+                className="bg-green-600 px-3 py-1 rounded text-white"
+              >
+                📞
+              </button>
+              <button
+                onClick={() => startCall("video")}
+                className="bg-purple-600 px-3 py-1 rounded text-white"
+              >
+                📹
+              </button>
+
+              {callActive && (
+                <>
+                  <button
+                    onClick={toggleMute}
+                    className="bg-yellow-500 px-3 py-1 rounded text-white"
+                  >
+                    {isMuted ? "🔊" : "🔇"}
+                  </button>
+
+                  <button
+                    onClick={endCall}
+                    className="bg-red-600 px-3 py-1 rounded text-white"
+                  >
+                    ❌
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
+          {/* MESSAGES */}
           <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`p-3 my-2 rounded-xl max-w-[75%] md:max-w-[40%] ${
+                className={`p-3 my-2 rounded-xl max-w-[75%] ${
                   msg.senderId === senderId
-                    ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
-                    : "bg-white border shadow"
+                    ? "bg-pink-500 text-white ml-auto"
+                    : "bg-white"
                 }`}
               >
                 {msg.message}
@@ -981,15 +1390,16 @@ export default function ChatPage() {
             ))}
           </div>
 
-          <div className="flex p-2 sm:p-3 gap-2 bg-white shadow">
+          {/* INPUT */}
+          <div className="flex p-2 gap-2 bg-white">
             <input
-              className="border p-2 flex-1 rounded text-sm sm:text-base"
+              className="border p-2 flex-1 rounded"
               value={input}
               onChange={handleTyping}
               placeholder="Type a message..."
             />
             <button
-              className="bg-blue-600 text-white px-3 sm:px-4 rounded text-sm sm:text-base"
+              className="bg-blue-600 text-white px-3 rounded"
               onClick={sendMessage}
             >
               Send
@@ -997,6 +1407,55 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* ============ INCOMING CALL POPUP ============ */}
+      {incomingCall && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded text-center">
+            <h3 className="font-bold mb-3">
+              Incoming {callType} Call
+            </h3>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={acceptCall}
+                className="bg-green-600 px-4 py-2 text-white rounded"
+              >
+                ✅ Attend
+              </button>
+              <button
+                onClick={() => setIncomingCall(null)}
+                className="bg-red-600 px-4 py-2 text-white rounded"
+              >
+                ❌ Unattend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ VIDEO BOX ============ */}
+      {callType && (
+        <div className="fixed bottom-0 right-0 w-64 bg-black p-2 z-50">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            className="w-full mb-2"
+          />
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            className="w-full"
+          />
+
+          <button
+            onClick={endCall}
+            className="mt-2 bg-red-600 w-full text-white py-1 rounded"
+          >
+            End Call
+          </button>
+        </div>
+      )}
     </div>
   );
 }

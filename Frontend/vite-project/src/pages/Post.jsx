@@ -33,6 +33,12 @@ const PostPage = () => {
   const [posts, setPosts] = useState([]);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false); 
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success", // success | error
+  });
+  
   
   const [oldImages, setOldImages] = useState([]); // DB images
 // 🔥 NEW: Button Loading State
@@ -136,7 +142,16 @@ const PostPage = () => {
         });
       }
 
-      alert("✔ Post update!");
+      setToast({
+        show: true,
+        message: editId ? "Post Updated Successfully!" : "Post Uploaded Successfully!",
+        type: "success",
+      });
+      
+      setTimeout(() => {
+        setToast({ show: false, message: "", type: "success" });
+      }, 3000);
+      
 
       setFormData({ title: "", description: "" });
       setFiles([]);
@@ -181,6 +196,7 @@ const PostPage = () => {
   };
 
   return (
+    
     <div className="flex items-center">
   <div className="flex">
   {/* Desktop Left Sidebar */}
