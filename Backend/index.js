@@ -461,18 +461,35 @@ io.on("connection", (socket) => {
   // ✅✅✅ CALL EVENTS (FIXED & WORKING)
   // ===================================================
 
-  socket.on("call-user", (data) => {
-    console.log("📞 CALL FROM:", data.from, "TO:", data.to);
+  // socket.on("call-user", (data) => {
+  //   console.log("📞 CALL FROM:", data.from, "TO:", data.to);
   
+  //   const receiverSocketId = onlineUsers[data.to];
+  //   console.log("🎯 RECEIVER SOCKET:", receiverSocketId);
+  
+  //   if (receiverSocketId) {
+  //     io.to(receiverSocketId).emit("incoming-call", data);
+  //     console.log("✅ INCOMING CALL SENT");
+  //   } else {
+  //     console.log("❌ RECEIVER OFFLINE OR NOT AUTHENTICATED");
+  //   }
+  // });
+  
+
+  socket.on("call-user", (data) => {
     const receiverSocketId = onlineUsers[data.to];
+  
+    console.log("📞 CALL FROM:", data.from, "TO:", data.to);
     console.log("🎯 RECEIVER SOCKET:", receiverSocketId);
   
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("incoming-call", data);
-      console.log("✅ INCOMING CALL SENT");
-    } else {
-      console.log("❌ RECEIVER OFFLINE OR NOT AUTHENTICATED");
+    if (!receiverSocketId) {
+      socket.emit("call-failed", {
+        reason: "offline",
+      });
+      return;
     }
+  
+    io.to(receiverSocketId).emit("incoming-call", data);
   });
   
 
@@ -490,7 +507,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ---------- DISCONNECT ----------
+
+  socket.on("end-call", ({ to }) => {
+    const targetSocket = onlineUsers[to];
+    if (targetSocket) {
+      io.to(targetSocket).emit("call-ended");
+    }
+  });
+
+
+   // ---------- DISCONNECT ----------
+
   socket.on("disconnect", () => {
     for (const userId in onlineUsers) {
       if (onlineUsers[userId] === socket.id) {
@@ -501,7 +528,13 @@ io.on("connection", (socket) => {
       }
     }
   });
+
 });
+
+
+
+
+
 
 // ---------- START SERVER ----------
 httpServer.listen(port, () => {

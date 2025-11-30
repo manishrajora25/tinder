@@ -1079,6 +1079,12 @@ export default function ChatPage() {
   const remoteVideoRef = useRef(null);
   const timerRef = useRef(null);
 
+
+  const [callingText, setCallingText] = useState("");
+  const [senderUser, setSenderUser] = useState(null);
+
+
+
 const ringAudioRef = useRef(
   typeof Audio !== "undefined" ? new Audio("/ring.mp3") : null
 );
@@ -1103,6 +1109,7 @@ const ringAudioRef = useRef(
         console.log("🔥 USER ME SUCCESS:", id);
   
         setSenderId(id);
+        setSenderUser(res.data.user);  
   
         socket.emit("authenticate", {
           token,
@@ -1265,6 +1272,7 @@ const ringAudioRef = useRef(
   // ================== SOCKET LISTENERS (CALL) ==================
   useEffect(() => {
     socket.on("incoming-call", (data) => {
+      console.log("📞 INCOMING CALL DATA:", data); 
       // ring sound
       if (ringAudioRef.current) {
         ringAudioRef.current.loop = true;
@@ -1297,10 +1305,30 @@ const ringAudioRef = useRef(
       peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
     });
 
+ // ✅ USER OFFLINE
+ socket.on("call-failed", (data) => {
+  if (data.reason === "offline") {
+    alert("❌ User is offline");
+    setCallType(null);
+    setCallActive(false);
+  }
+});
+
+
+    socket.on("call-ended", () => {
+      cleanupStreamsAndPeer();
+      setCallType(null);
+      setIncomingCall(null);
+      setCallActive(false);
+      alert("📴 Call Ended");
+    });
+  
     return () => {
       socket.off("incoming-call");
       socket.off("call-accepted");
       socket.off("webrtc-ice");
+      socket.off("call-failed");   
+      socket.off("call-ended"); // ✅ cleanup zaroori
     };
   }, []);
 
@@ -1413,7 +1441,14 @@ const ringAudioRef = useRef(
 
  // START CALL ✅ FIXED
 const startCall = async (type) => {
+
+
   if (!senderId || !receiverId) return;
+
+
+  // ❌ Receiver offline hai to call mat lagao
+
+
 
   // ✅ STOP OLD STREAM IF EXISTS (VERY IMPORTANT)
   if (localStreamRef.current) {
@@ -1465,15 +1500,40 @@ const startCall = async (type) => {
   const offer = await peerRef.current.createOffer();
   await peerRef.current.setLocalDescription(offer);
 
+ 
+
+
+
+  // socket.emit("call-user", {
+  //   to: receiverId,
+  //   from: senderId,
+  //   type,
+  //   offer,
+  
+  //   callerName: senderUser?.name || "Unknown",
+  //   callerImage: senderUser?.image || ""
+  // });
+  
+  
   socket.emit("call-user", {
     to: receiverId,
     from: senderId,
     type,
     offer,
+  
+    callerName: senderUser?.name || "User",
+    callerImage: senderUser?.image 
+      ? senderUser.image.startsWith("http")
+        ? senderUser.image
+        : import.meta.env.VITE_BACKEND_URL + senderUser.image
+      : ""
   });
-
+  
+  
   setCallActive(true);
+  setCallingText("Calling by " + receiverUser?.name);
 };
+
 
 
 
@@ -1577,27 +1637,57 @@ const acceptCall = async () => {
 
 
 
-  // REJECT / UNATTEND CALL
-  const rejectIncomingCall = async () => {
-    if (ringAudioRef.current) {
-      ringAudioRef.current.pause();
-      ringAudioRef.current.currentTime = 0;
-    }
-    await saveCallHistory("missed", 0);
-    setIncomingCall(null);
-    setCallType(null);
-    setCallActive(false);
-  };
+const rejectIncomingCall = async () => {
+  if (ringAudioRef.current) {
+    ringAudioRef.current.pause();
+    ringAudioRef.current.currentTime = 0;
+  }
+
+  await saveCallHistory("missed", 0);
+
+  // ✅ CALLER KO BATAO KI CALL REJECT HO GAYI
+  if (incomingCall?.from) {
+    socket.emit("end-call", { to: incomingCall.from });
+  }
+
+  cleanupStreamsAndPeer();
+  setIncomingCall(null);
+  setCallType(null);
+  setCallActive(false);
+};
+
+
+
+  // cleanupStreamsAndPeer();
+  // setCallType(null);
+  // setIncomingCall(null);
+  // setCallActive(false);
+  // alert("📴 Call Ended");
 
   // END CALL
+  // const endCall = async () => {
+  //   await saveCallHistory("completed");
+  //   cleanupStreamsAndPeer();
+  //   setCallType(null);
+  //   setIncomingCall(null);
+  //   setCallActive(false);
+  //   setIsMuted(false);
+  // };
+
   const endCall = async () => {
     await saveCallHistory("completed");
+  
+    socket.emit("end-call", {
+      to: incomingCall?.from || receiverId,
+    });
+  
     cleanupStreamsAndPeer();
     setCallType(null);
     setIncomingCall(null);
     setCallActive(false);
     setIsMuted(false);
   };
+  
 
   // MUTE / UNMUTE
   const toggleMute = () => {
@@ -1824,9 +1914,42 @@ const toggleFullscreen = () => {
       {incomingCall && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded text-center w-[90%] max-w-sm">
-            <h3 className="font-bold mb-3">
+          {/* <h3 className="font-bold mb-3">
+  {incomingCall?.callerName || "User"} is calling you...
+</h3> */}
+
+<div className="">
+
+
+<img
+  src={
+    incomingCall?.callerImage && incomingCall.callerImage !== ""
+      ? incomingCall.callerImage
+      : "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+  }
+  onError={(e) => {
+    e.target.src =
+      "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+  }}
+  className="w-20 h-20 mx-auto rounded-full mb-3 object-cover"
+/>
+
+
+
+
+<h3 className="font-bold mb-3">
+  Incoming {callType} Call from {incomingCall?.callerName || "User"}
+</h3>
+
+
+
+
+ {/* <h3 className="font-bold mb-3">
               Incoming {callType} Call from {receiverUser?.name || "User"}
-            </h3>
+            </h3>  */}
+</div>
+
+
             <div className="flex gap-4 justify-center">
               <button
                 onClick={acceptCall}
@@ -1848,6 +1971,9 @@ const toggleFullscreen = () => {
       {/* ============ VIDEO / AUDIO UI ============ */}
       {callType && (
   <div className="fixed bottom-3 right-3 w-80 bg-black rounded-xl overflow-hidden z-50 shadow-2xl">
+{callActive && (
+  <p className="text-xs text-white ml-3">{callingText}</p>
+)}
 
     {/* REMOTE VIDEO */}
     <video
