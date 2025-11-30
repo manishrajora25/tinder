@@ -280,11 +280,16 @@ import swaggerSpec from "./server/server.js";
 import postRoute from "./routes/postRoute.js";
 import requestRoute from "./routes/requestRoute.js";
 import chatRoute from "./routes/chatRoute.js";
+import callRoute from "./routes/callRoute.js";
+
 
 import { createServer } from "http";
 import { Server } from "socket.io";
 import Message from "./models/Message.js";
 import jwt from "jsonwebtoken";
+
+
+
 
 dotenv.config();
 
@@ -331,6 +336,8 @@ app.use("/profile", profileRoute);
 app.use("/post", postRoute);
 app.use("/request", requestRoute);
 app.use("/send", chatRoute);
+app.use("/call", callRoute);
+
 
 // ---------- HTTP + SOCKET SERVER ----------
 const httpServer = createServer(app);
@@ -362,30 +369,47 @@ io.on("connection", (socket) => {
   console.log("✅ Socket connected:", socket.id);
 
   // ---------- AUTH ----------
-  socket.on("authenticate", ({ token }) => {
-    if (!token) return;
-
+  socket.on("authenticate", ({ token, userId }) => {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.id;
-      onlineUsers[socket.userId] = socket.id;
-
-      console.log("✅ Socket Auth:", socket.userId);
-      io.emit("user-online", socket.userId);
+      let id = userId;
+  
+      // fallback to token
+      if (!id && token) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        id = decoded.id;
+      }
+  
+      if (!id) {
+        console.log("❌ AUTH FAILED: No userId and no token");
+        return;
+      }
+  
+      socket.userId = id;
+      onlineUsers[id] = socket.id;
+  
+      console.log("✅ Socket Auth:", id, "->", socket.id);
+      io.emit("user-online", id);
     } catch (err) {
-      console.log("❌ Socket auth failed");
+      console.log("❌ Socket auth failed:", err.message);
     }
   });
+  
 
   // ---------- CHECK ONLINE ----------
   socket.on("check-online", ({ receiverId }) => {
-    if (onlineUsers[receiverId]) {
-      socket.emit("user-online", receiverId);
-    } else {
-      socket.emit("user-offline", receiverId);
-    }
+    const isOnline = !!onlineUsers[receiverId];
+  
+    console.log(
+      "🔍 CHECK ONLINE:",
+      receiverId,
+      "->",
+      isOnline ? "ONLINE" : "OFFLINE"
+    );
+  
+    // ✅ Sender ko status bhejo
+    socket.emit(isOnline ? "user-online" : "user-offline", receiverId);
   });
-
+  
   // ---------- JOIN ROOM ----------
   socket.on("join-room", ({ senderId, receiverId }) => {
     const roomId = getRoomId({ _id: senderId }, { _id: receiverId });
@@ -438,11 +462,19 @@ io.on("connection", (socket) => {
   // ===================================================
 
   socket.on("call-user", (data) => {
+    console.log("📞 CALL FROM:", data.from, "TO:", data.to);
+  
     const receiverSocketId = onlineUsers[data.to];
+    console.log("🎯 RECEIVER SOCKET:", receiverSocketId);
+  
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("incoming-call", data);
+      console.log("✅ INCOMING CALL SENT");
+    } else {
+      console.log("❌ RECEIVER OFFLINE OR NOT AUTHENTICATED");
     }
   });
+  
 
   socket.on("accept-call", (data) => {
     const callerSocketId = onlineUsers[data.to];

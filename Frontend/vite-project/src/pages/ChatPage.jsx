@@ -1029,6 +1029,14 @@
 
 
 
+
+
+
+
+
+
+
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -1058,31 +1066,126 @@ export default function ChatPage() {
 
   const typingTimeoutRef = useRef(null);
 
-  // ================= CALL STATES =================
-  const [callType, setCallType] = useState(null);
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
+  // ================== CALL STATES ==================
+  const [callType, setCallType] = useState(null); // "audio" | "video"
+  const [incomingCall, setIncomingCall] = useState(null); // data from caller
   const [callActive, setCallActive] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [callSeconds, setCallSeconds] = useState(0);
 
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const timerRef = useRef(null);
 
-  /* 1. Logged-in user */
+const ringAudioRef = useRef(
+  typeof Audio !== "undefined" ? new Audio("/ring.mp3") : null
+);
+ // public/ring.mp3
+
+
+  const [cameraOn, setCameraOn] = useState(true);
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [facingMode, setFacingMode] = useState("user"); // user | environment
+  
+
+
+
   useEffect(() => {
-    Instance.get("/user/me")
-      .then((res) => {
-        setSenderId(res.data.user._id);
+    const initAuth = async () => {
+      try {
+        const res = await Instance.get("/user/me", { withCredentials: true });
+  
+        const id = res.data.user._id;
+        const token = res.data.token || localStorage.getItem("token");
+  
+        console.log("🔥 USER ME SUCCESS:", id);
+  
+        setSenderId(id);
+  
+        socket.emit("authenticate", {
+          token,
+          userId: id,
+        });
+  
+        console.log("✅ AUTH SENT FROM FRONTEND:", id);
+      } catch (err) {
+        console.log("❌ USER ME FAILED:", err?.response?.data || err);
+      }
+    };
+  
+    initAuth();
+  }, []);
+  
+  
 
+
+
+  useEffect(() => {
+    socket.on("connect", () => {
+      const token = localStorage.getItem("token");
+  
+      if (token && senderId) {
+        socket.emit("authenticate", {
+          token,
+          userId: senderId,
+        });
+  
+        console.log("🔁 REAUTH AFTER RECONNECT:", senderId);
+      }
+    });
+  
+    return () => {
+      socket.off("connect");
+    };
+  }, [senderId]);
+  
+
+
+
+  // ================== TIMER EFFECT ==================
+  useEffect(() => {
+    if (callActive) {
+      timerRef.current = setInterval(() => {
+        setCallSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+      setCallSeconds(0);
+    }
+
+    return () => {
+      clearInterval(timerRef.current);
+    };
+  }, [callActive]);
+
+  // ================== USER LOGIN ==================
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const res = await Instance.get("/user/me");
+        const id = res.data.user._id;
+  
+        setSenderId(id);
+  
+        // ⚠️ VERY IMPORTANT: userId + token both send karo
         socket.emit("authenticate", {
           token: res.data.token || localStorage.getItem("token"),
+          userId: id,
         });
-      })
-      .catch(() => console.log("User not logged in"));
+  
+        console.log("✅ AUTH SENT FROM FRONTEND:", id);
+      } catch (err) {
+        console.log("User not logged in");
+      }
+    };
+  
+    initAuth();
   }, []);
+  
 
-  /* 2. Load chat list */
+  // ================== CHAT LIST ==================
   useEffect(() => {
     if (!senderId) return;
 
@@ -1091,7 +1194,7 @@ export default function ChatPage() {
       .catch((err) => console.log(err));
   }, [senderId]);
 
-  /* 3. Load receiver info */
+  // ================== RECEIVER INFO ==================
   useEffect(() => {
     if (!receiverId) return;
 
@@ -1100,7 +1203,7 @@ export default function ChatPage() {
       .catch((err) => console.log(err));
   }, [receiverId]);
 
-  /* 4. Join chat room */
+  // ================== JOIN ROOM ==================
   useEffect(() => {
     if (!senderId || !receiverId) return;
 
@@ -1108,7 +1211,7 @@ export default function ChatPage() {
     socket.emit("check-online", { receiverId });
   }, [senderId, receiverId]);
 
-  /* 5. Load chat history */
+  // ================== CHAT HISTORY ==================
   useEffect(() => {
     if (!senderId || !receiverId) return;
 
@@ -1117,17 +1220,23 @@ export default function ChatPage() {
       .catch(() => console.log("Error fetching messages"));
   }, [senderId, receiverId]);
 
-  /* 6. SOCKET LISTENERS */
+  // ================== SOCKET LISTENERS (CHAT) ==================
   useEffect(() => {
     socket.on("receive_message", (msg) => {
       const isCurrentChat =
         (msg.senderId === receiverId && msg.receiverId === senderId) ||
         (msg.senderId === senderId && msg.receiverId === receiverId);
 
-      if (!isCurrentChat) return;
+      if (!isCurrentChat) {
+        refreshChatList();
+        return;
+      }
 
       setMessages((prev) => [...prev, msg]);
+      refreshChatList();
     });
+
+    socket.on("online-users", (users) => setOnlineUsers(users));
 
     socket.on("user-online", (id) => id === receiverId && setIsOnline(true));
     socket.on("user-offline", (id) => id === receiverId && setIsOnline(false));
@@ -1142,20 +1251,77 @@ export default function ChatPage() {
 
     return () => {
       socket.off("receive_message");
+      socket.off("online-users");
       socket.off("user-online");
       socket.off("user-offline");
       socket.off("typing");
       socket.off("stop-typing");
     };
-  }, [receiverId]);
+  }, [receiverId, senderId]);
+
+
+
+  
+  // ================== SOCKET LISTENERS (CALL) ==================
+  useEffect(() => {
+    socket.on("incoming-call", (data) => {
+      // ring sound
+      if (ringAudioRef.current) {
+        ringAudioRef.current.loop = true;
+        ringAudioRef.current.currentTime = 0;
+        ringAudioRef.current.muted = false;
+      
+        ringAudioRef.current
+          .play()
+          .then(() => console.log("🔊 Ring playing"))
+          .catch(() => console.log("🔕 Autoplay blocked by browser"));
+      }
+      
+      setIncomingCall(data);
+      setCallType(data.type);
+      setCallActive(false); // active tabhi jab attend kare
+    });
+
+    socket.on("call-accepted", async (data) => {
+      if (!peerRef.current) return;
+      await peerRef.current.setRemoteDescription(data.answer);
+      setCallActive(true);
+      if (ringAudioRef.current) {
+        ringAudioRef.current.pause();
+        ringAudioRef.current.currentTime = 0;
+      }
+    });
+
+    socket.on("webrtc-ice", (data) => {
+      if (!peerRef.current) return;
+      peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    return () => {
+      socket.off("incoming-call");
+      socket.off("call-accepted");
+      socket.off("webrtc-ice");
+    };
+  }, []);
+
+  /* REFRESH CHAT LIST */
+  const refreshChatList = () => {
+    if (!senderId) return;
+
+    Instance.get(`/send/recent/${senderId}`)
+      .then((res) => setChatList(res.data.chats))
+      .catch((err) => console.log(err));
+  };
 
   /* SEND MESSAGE */
   const sendMessage = () => {
     if (!input.trim()) return;
 
     const msg = { senderId, receiverId, message: input };
+
     socket.emit("send_message", msg);
     setInput("");
+
     socket.emit("stop-typing", { senderId, receiverId });
   };
 
@@ -1172,101 +1338,210 @@ export default function ChatPage() {
     }, 700);
   };
 
-  // ================= CALL SOCKET LISTENERS =================
+  // FETCH ALL POSTS (no change)
+  const fetchAllPosts = async () => {
+    try {
+      const res = await Instance.get("/post/feed", { withCredentials: true });
+      if (res.data?.success) setPosts(res.data.posts);
+      else setPosts([]);
+    } catch (err) {
+      console.error("❌ Error fetching posts:", err);
+    }
+  };
+
   useEffect(() => {
-    socket.on("incoming-call", (data) => {
-      setIncomingCall(data);
-      setCallType(data.type);
-      setCallActive(true);
-    });
-
-    socket.on("call-accepted", async (data) => {
-      await peerRef.current.setRemoteDescription(data.answer);
-      setCallActive(true);
-    });
-
-    socket.on("webrtc-ice", (data) => {
-      peerRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
-    });
-
-    return () => {
-      socket.off("incoming-call");
-      socket.off("call-accepted");
-      socket.off("webrtc-ice");
-    };
+    fetchAllPosts();
   }, []);
 
-  // ================= START CALL =================
-  const startCall = async (type) => {
-    setCallType(type);
+  // 👉 Function to find first post image of a user
+  const getUserFirstPostImage = (userId) => {
+    const userPosts = posts.filter((p) => p.userId?._id === userId);
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: type === "video",
-    });
+    if (userPosts.length === 0) return null;
+
+    const firstPost = userPosts[0];
+
+    if (firstPost.images?.length > 0) {
+      return firstPost.images[0];
+    }
+
+    return null;
+  };
+
+  // ================== CALL HELPERS ==================
+
+  // Call history save (assumes /call/save backend – optional)
+  const saveCallHistory = async (status, durationOverride) => {
+    try {
+      if (!senderId || !receiverId) return;
+
+      await Instance.post("/call/save", {
+        caller: senderId,
+        receiver: receiverId,
+        type: callType || "audio",
+        duration:
+          typeof durationOverride === "number" ? durationOverride : callSeconds,
+        status, // "completed" | "missed"
+      });
+    } catch (err) {
+      console.log("Call history save error:", err?.response?.data || err);
+    }
+  };
+
+  const cleanupStreamsAndPeer = () => {
+    if (peerRef.current) {
+      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidate = null;
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => t.stop());
+      localStreamRef.current = null;
+    }
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    if (ringAudioRef.current) {
+      ringAudioRef.current.pause();
+      ringAudioRef.current.currentTime = 0;
+    }
+  };
+
+ // START CALL ✅ FIXED
+const startCall = async (type) => {
+  if (!senderId || !receiverId) return;
+
+  // ✅ STOP OLD STREAM IF EXISTS (VERY IMPORTANT)
+  if (localStreamRef.current) {
+    localStreamRef.current.getTracks().forEach(track => track.stop());
+    localStreamRef.current = null;
+  }
+
+  if (peerRef.current) {
+    peerRef.current.close();
+    peerRef.current = null;
+  }
+
+  setCallType(type);
+  setIncomingCall(null);
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: type === "video",
+  });
+
+  localStreamRef.current = stream;
+  if (localVideoRef.current) {
+    localVideoRef.current.srcObject = stream;
+  }
+
+  peerRef.current = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+
+  stream.getTracks().forEach((track) =>
+    peerRef.current.addTrack(track, stream)
+  );
+
+  peerRef.current.onicecandidate = (e) => {
+    if (e.candidate) {
+      socket.emit("webrtc-ice", {
+        to: receiverId,
+        candidate: e.candidate,
+      });
+    }
+  };
+
+  peerRef.current.ontrack = (e) => {
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = e.streams[0];
+    }
+  };
+
+  const offer = await peerRef.current.createOffer();
+  await peerRef.current.setLocalDescription(offer);
+
+  socket.emit("call-user", {
+    to: receiverId,
+    from: senderId,
+    type,
+    offer,
+  });
+
+  setCallActive(true);
+};
+
+
+
+
+
+// ACCEPT CALL ✅ FIXED
+// ✅ ACCEPT CALL — FINAL 100% SAFE VERSION
+const acceptCall = async () => {
+  if (!incomingCall) return;
+
+  try {
+    // STOP old stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+      localStreamRef.current = null;
+    }
+
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+
+    // STOP ring
+    if (ringAudioRef.current) {
+      ringAudioRef.current.pause();
+      ringAudioRef.current.currentTime = 0;
+    }
+
+    // TRY video/mic
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: callType === "video",
+      });
+    } catch (err) {
+      console.warn("❌ Video device busy! Retrying with AUDIO only...");
+      // FALLBACK to audio only
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+
+      // notify UI
+      setCameraOn(false);
+    }
 
     localStreamRef.current = stream;
-    if (localVideoRef.current) {
+    if (localVideoRef.current && callType === "video") {
       localVideoRef.current.srcObject = stream;
     }
 
+    // CREATE peer
     peerRef.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    stream.getTracks().forEach((track) =>
-      peerRef.current.addTrack(track, stream)
-    );
+    stream.getTracks().forEach(track => {
+      peerRef.current.addTrack(track, stream);
+    });
 
-    peerRef.current.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.emit("webrtc-ice", {
-          to: receiverId,
-          candidate: e.candidate,
-        });
+    peerRef.current.ontrack = e => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = e.streams[0];
       }
     };
 
-    peerRef.current.ontrack = (e) => {
-      remoteVideoRef.current.srcObject = e.streams[0];
-    };
-
-    const offer = await peerRef.current.createOffer();
-    await peerRef.current.setLocalDescription(offer);
-
-    socket.emit("call-user", {
-      to: receiverId,
-      from: senderId,
-      type,
-      offer,
-    });
-  };
-
-  // ================= ACCEPT CALL =================
-  const acceptCall = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: callType === "video",
-    });
-
-    localStreamRef.current = stream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-    }
-
-    peerRef.current = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
-    stream.getTracks().forEach((track) =>
-      peerRef.current.addTrack(track, stream)
-    );
-
-    peerRef.current.ontrack = (e) => {
-      remoteVideoRef.current.srcObject = e.streams[0];
-    };
-
-    peerRef.current.onicecandidate = (e) => {
+    peerRef.current.onicecandidate = e => {
       if (e.candidate) {
         socket.emit("webrtc-ice", {
           to: incomingCall.from,
@@ -1285,34 +1560,120 @@ export default function ChatPage() {
       answer,
     });
 
+    setCallActive(true);
     setIncomingCall(null);
+
+  } catch (err) {
+    console.error("❌ FINAL ACCEPT CALL ERROR:", err);
+
+    alert(
+      "Camera/Mic is blocked by your device. Please:\n\n" +
+      "1. Close WhatsApp, Instagram, Snapchat\n" +
+      "2. Close previous Chrome tabs\n" +
+      "3. Restart your browser\n\nThen try again."
+    );
+  }
+};
+
+
+
+  // REJECT / UNATTEND CALL
+  const rejectIncomingCall = async () => {
+    if (ringAudioRef.current) {
+      ringAudioRef.current.pause();
+      ringAudioRef.current.currentTime = 0;
+    }
+    await saveCallHistory("missed", 0);
+    setIncomingCall(null);
+    setCallType(null);
+    setCallActive(false);
   };
 
-  // ================= END CALL =================
-  const endCall = () => {
-    if (peerRef.current) {
-      peerRef.current.close();
-      peerRef.current = null;
-    }
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-    }
-
+  // END CALL
+  const endCall = async () => {
+    await saveCallHistory("completed");
+    cleanupStreamsAndPeer();
     setCallType(null);
     setIncomingCall(null);
     setCallActive(false);
     setIsMuted(false);
   };
 
-  // ================= MUTE / UNMUTE =================
+  // MUTE / UNMUTE
   const toggleMute = () => {
     if (!localStreamRef.current) return;
 
     const audioTrack = localStreamRef.current.getAudioTracks()[0];
+    if (!audioTrack) return;
+
     audioTrack.enabled = !audioTrack.enabled;
     setIsMuted(!audioTrack.enabled);
   };
+
+
+
+
+
+  // 📷 CAMERA ON / OFF
+const toggleCamera = () => {
+  if (!localStreamRef.current) return;
+
+  const videoTrack = localStreamRef.current.getVideoTracks()[0];
+  if (!videoTrack) return;
+
+  videoTrack.enabled = !videoTrack.enabled;
+  setCameraOn(videoTrack.enabled);
+};
+
+// 🔈 SPEAKER ON / OFF
+const toggleSpeaker = () => {
+  if (!remoteVideoRef.current) return;
+
+  remoteVideoRef.current.muted = speakerOn;
+  setSpeakerOn(!speakerOn);
+};
+
+// 🔄 CAMERA FLIP (Front / Back)
+const flipCamera = async () => {
+  if (!localStreamRef.current || !peerRef.current) return;
+
+  const oldStream = localStreamRef.current;
+  oldStream.getTracks().forEach((t) => t.stop());
+
+  const newFacingMode = facingMode === "user" ? "environment" : "user";
+
+  const newStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: { facingMode: newFacingMode },
+  });
+
+  localStreamRef.current = newStream;
+  localVideoRef.current.srcObject = newStream;
+
+  const senders = peerRef.current.getSenders();
+  const videoSender = senders.find((s) => s.track?.kind === "video");
+
+  if (videoSender) {
+    videoSender.replaceTrack(newStream.getVideoTracks()[0]);
+  }
+
+  setFacingMode(newFacingMode);
+};
+
+// 🎥 FULLSCREEN TOGGLE
+const toggleFullscreen = () => {
+  if (!remoteVideoRef.current) return;
+
+  if (!document.fullscreenElement) {
+    remoteVideoRef.current.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+
+
+
 
   if (!senderId) return <div>Loading...</div>;
 
@@ -1321,68 +1682,120 @@ export default function ChatPage() {
       <LeftPage />
 
       <div className="flex h-screen w-full md:ml-[26%]">
+        {/* LEFT SIDEBAR */}
+        <div className="hidden md:block w-[260px] lg:w-[300px] bg-white border-r overflow-y-auto">
+          <h2 className="p-4 text-lg font-semibold border-b">All Chats</h2>
+
+          {chatList.map((chat) => {
+            const postImage = getUserFirstPostImage(chat.userId);
+
+            return (
+              <div
+                key={chat.userId}
+                onClick={() => navigate(`/ChatPage/${chat.userId}`)}
+                className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-gray-100"
+              >
+                <img
+                  src={
+                    postImage ||
+                    chat.image ||
+                    "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                  }
+                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
+                />
+
+                <div className="flex-1">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    {chat.name}
+                    {onlineUsers[chat.userId] && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    )}
+                  </h4>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500 truncate flex-1">
+                      {chat.lastMessage}
+                    </p>
+
+                    {chat.unreadCount > 0 && (
+                      <span className="w-2 h-2 bg-blue-600 rounded-full ml-2"></span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* RIGHT CHAT AREA */}
         <div className="flex flex-col flex-1">
-          {/* HEADER */}
           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white">
             <img
               src={
                 receiverUser.image ||
+                getUserFirstPostImage(receiverUser._id) ||
                 "https://cdn-icons-png.flaticon.com/512/149/149071.png"
               }
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full"
             />
             <div>
-              <h2 className="font-semibold">{receiverUser.name}</h2>
+              <h2 className="text-base lg:text-lg font-semibold">
+                {receiverUser.name}
+              </h2>
               <p className="text-sm">
                 {typing ? "Typing..." : isOnline ? "Online" : "Offline"}
               </p>
             </div>
 
             {/* CALL BUTTONS */}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex items-center gap-2">
+              {/* {callActive && (
+                <span className="text-xs mr-2">
+                  ⏱ {Math.floor(callSeconds / 60)}:
+                  {String(callSeconds % 60).padStart(2, "0")}
+                </span>
+              )} */}
+
               <button
                 onClick={() => startCall("audio")}
-                className="bg-green-600 px-3 py-1 rounded text-white"
+                className="bg-green-600 px-3 py-1 rounded text-white text-sm cursor-pointer"
               >
-                📞
-              </button>
-              <button
-                onClick={() => startCall("video")}
-                className="bg-purple-600 px-3 py-1 rounded text-white"
-              >
-                📹
+                📞 Call
               </button>
 
-              {callActive && (
+              <button
+                onClick={() => startCall("video")}
+                className="bg-purple-600 px-3 py-1 rounded text-white text-sm cursor-pointer"
+              >
+                📹 Video
+              </button>
+
+              {/* {callActive && (
                 <>
                   <button
                     onClick={toggleMute}
-                    className="bg-yellow-500 px-3 py-1 rounded text-white"
+                    className="bg-yellow-500 px-3 py-1 rounded text-white text-sm cursor-pointer"
                   >
-                    {isMuted ? "🔊" : "🔇"}
+                    {isMuted ? "🔊 Unmute" : "🔇 Mute"}
                   </button>
-
                   <button
                     onClick={endCall}
-                    className="bg-red-600 px-3 py-1 rounded text-white"
+                    className="bg-red-600 px-3 py-1 rounded text-white text-sm cursor-pointer"
                   >
-                    ❌
+                    ❌ End
                   </button>
                 </>
-              )}
+              )} */}
             </div>
           </div>
 
-          {/* MESSAGES */}
           <div className="flex-1 p-4 bg-gray-100 overflow-y-auto">
             {messages.map((msg, i) => (
               <div
                 key={i}
-                className={`p-3 my-2 rounded-xl max-w-[75%] ${
+                className={`p-3 my-2 rounded-xl max-w-[75%] md:max-w-[40%] ${
                   msg.senderId === senderId
-                    ? "bg-pink-500 text-white ml-auto"
-                    : "bg-white"
+                    ? "bg-gradient-to-r from-pink-500 to-orange-400 text-white ml-auto"
+                    : "bg-white border shadow"
                 }`}
               >
                 {msg.message}
@@ -1390,16 +1803,15 @@ export default function ChatPage() {
             ))}
           </div>
 
-          {/* INPUT */}
-          <div className="flex p-2 gap-2 bg-white">
+          <div className="flex p-2 sm:p-3 gap-2 bg-white shadow">
             <input
-              className="border p-2 flex-1 rounded"
+              className="border p-2 flex-1 rounded text-sm sm:text-base"
               value={input}
               onChange={handleTyping}
               placeholder="Type a message..."
             />
             <button
-              className="bg-blue-600 text-white px-3 rounded"
+              className="bg-blue-600 text-white px-3 sm:px-4 rounded text-sm sm:text-base"
               onClick={sendMessage}
             >
               Send
@@ -1411,9 +1823,9 @@ export default function ChatPage() {
       {/* ============ INCOMING CALL POPUP ============ */}
       {incomingCall && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded text-center">
+          <div className="bg-white p-6 rounded text-center w-[90%] max-w-sm">
             <h3 className="font-bold mb-3">
-              Incoming {callType} Call
+              Incoming {callType} Call from {receiverUser?.name || "User"}
             </h3>
             <div className="flex gap-4 justify-center">
               <button
@@ -1423,7 +1835,7 @@ export default function ChatPage() {
                 ✅ Attend
               </button>
               <button
-                onClick={() => setIncomingCall(null)}
+                onClick={rejectIncomingCall}
                 className="bg-red-600 px-4 py-2 text-white rounded"
               >
                 ❌ Unattend
@@ -1433,29 +1845,66 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* ============ VIDEO BOX ============ */}
+      {/* ============ VIDEO / AUDIO UI ============ */}
       {callType && (
-        <div className="fixed bottom-0 right-0 w-64 bg-black p-2 z-50">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            className="w-full mb-2"
-          />
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            className="w-full"
-          />
+  <div className="fixed bottom-3 right-3 w-80 bg-black rounded-xl overflow-hidden z-50 shadow-2xl">
 
-          <button
-            onClick={endCall}
-            className="mt-2 bg-red-600 w-full text-white py-1 rounded"
-          >
-            End Call
-          </button>
-        </div>
-      )}
+    {/* REMOTE VIDEO */}
+    <video
+      ref={remoteVideoRef}
+      autoPlay
+      className="w-full h-52 object-cover"
+    />
+
+    {/* LOCAL PREVIEW */}
+    <video
+      ref={localVideoRef}
+      autoPlay
+      muted
+      className="absolute bottom-16 right-2 w-24 h-24 object-cover border-2 border-white rounded-lg"
+    />
+
+    {/* CONTROL BAR */}
+    <div className="flex items-center justify-between px-3 py-2 bg-black/80 text-white">
+
+      {/* TIMER */}
+      <span className="text-sm">
+        ⏱ {Math.floor(callSeconds / 60)}:
+        {String(callSeconds % 60).padStart(2, "0")}
+      </span>
+
+      {/* ALL CONTROLS */}
+      <div className="flex gap-2 flex-wrap">
+
+        <button onClick={toggleMute} className="bg-yellow-500 px-2 py-1 rounded-full text-xs">
+          {isMuted ? "🔊" : "🔇"}
+        </button>
+
+        <button onClick={toggleCamera} className="bg-indigo-600 px-2 py-1 rounded-full text-xs">
+          {cameraOn ? "📷" : "🚫"}
+        </button>
+
+        <button onClick={toggleSpeaker} className="bg-green-600 px-2 py-1 rounded-full text-xs">
+          {speakerOn ? "🔈" : "🔇"}
+        </button>
+
+        <button onClick={flipCamera} className="bg-blue-600 px-2 py-1 rounded-full text-xs">
+          🔄
+        </button>
+
+        <button onClick={toggleFullscreen} className="bg-gray-600 px-2 py-1 rounded-full text-xs">
+          🎥
+        </button>
+
+        <button onClick={endCall} className="bg-red-600 px-2 py-1 rounded-full text-xs">
+          ❌
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 }
