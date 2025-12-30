@@ -29,8 +29,7 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "tinder_profiles",
-    allowed_formats: ["jpg", "png", "jpeg", "webp", "avif", "mp4", "pdf", "mp3"],
-
+    allowedFormats: ["jpg", "png", "jpeg", "webp", "avif", "mp4", "pdf", "mp3"],
   },
 });
 

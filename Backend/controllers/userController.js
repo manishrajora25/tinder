@@ -96,6 +96,9 @@
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 import sgMail from "@sendgrid/mail";
+import { sendLoginSuccessEmail } from "../utils/sendEmail.js";
+
+
 import bcrypt from "bcrypt";
 import "dotenv/config";
 import dotenv from "dotenv";
@@ -161,6 +164,10 @@ export const loginUser = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    await sendLoginSuccessEmail(user.email);
+    console.log("Sending email to:", user.email);
+
 
     res
       .cookie("userToken", userToken, {
