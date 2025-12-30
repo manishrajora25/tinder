@@ -29,7 +29,6 @@ const port = process.env.PORT || 5000;
 
 connectDB();
 
-// ---------- CORS ----------
 const allowedOrigins = [
   process.env.LOCAL_URL,
   process.env.VERCEL_URL,
